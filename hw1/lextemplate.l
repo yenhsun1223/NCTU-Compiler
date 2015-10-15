@@ -16,7 +16,7 @@ char buf[MAX_LINE_LENG];
 
 
 digit [0-9]
-letter [a-zA-Z]
+letter [a-zA-Z_]
 float [0-9]+\.[0-9]*
 
 %Start COMMENT1
@@ -110,12 +110,12 @@ tokenString(string,out);
 <INITIAL>"return" {token(KWreturn)}
 <INITIAL>"var" {token(KWvar)}
 <INITIAL>"while" {token(KWwhile)}
-<INITIAL>[+-]?0|([1-9][0-9]*) {tokenInteger(integer,atoi(yytext));}
-<INITIAL>[+-]?0[0-7]+ {tokenOctInteger(oct_integer,yytext);}
+<INITIAL>0|([1-9][0-9]*) {tokenInteger(integer,atoi(yytext));}
+<INITIAL>0[0-7]+ {tokenOctInteger(oct_integer,yytext);}
 
 <INITIAL>{letter}({letter}|{digit})* {tokenOther(id,yytext);}
-<INITIAL>[+-]?{digit}+\.{digit}* {tokenOther(float,yytext)}
-<INITIAL>[+-]?({float}|{digit}*)?[eE][+-]?{digit} {tokenOther(scientific,yytext)}
+<INITIAL>{digit}+\.{digit}* {tokenOther(float,yytext)}
+<INITIAL>({float}|{digit}*)?[eE][+-]?{digit} {tokenOther(scientific,yytext)}
 
 
 %%
