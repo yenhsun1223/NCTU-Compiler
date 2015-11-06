@@ -4,4 +4,3 @@ lex.yy.c:lextemplate.l
 	flex lextemplate.l
 clean:
 	rm -f lex.yy.c
-
