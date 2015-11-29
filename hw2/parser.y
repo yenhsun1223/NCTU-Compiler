@@ -11,7 +11,7 @@ extern char buf[256];           /* declared in lex.l */
 /*symbols*/
 %token END COMMA VAR ARRAY OF TO BG ASSIGN PRINT READ LBRACKET RBRACKET
 %token WHILE DO FOR RETURN
-%token IDENT TYPE MOD LE GE NE NOT AND OR IF THEN ELSE INT FLOAT SCI OCTAL TRUE FALSE
+%token IDENT TYPE MOD LE GE NE NOT AND OR IF THEN ELSE INT FLOAT SCI OCTAL TRUE FALSE STRING
 
 %precedence PARENTHESES
 %precedence NEG
@@ -24,27 +24,51 @@ extern char buf[256];           /* declared in lex.l */
 
 
 %%
-program		: programname ';' programbody END IDENT TYPE ;
-		 programname	: identifier
-			;
+program			: programname ';' programbody END programname
+				;
 
-programbody : const_decl_list
-			| varibles
-			| function_list
-			| compound
-		;
+programname		: identifier
+				;
 
-identifier	: IDENT
-		   ;
+identifier		: IDENT
+				;
 
-number 		:INT
+programbody		:varible_list function_list compound
+				;
+
+
+
+
+idList				: /*epsilon*/
+					|nonEmptyidList
+					;
+
+nonEmptyidList		:identifier COMMA nonEmptyidList
+					|identifier
+					;
+
+literal_constant	:number
+				 	|STRING
+					|const_boolean
+					;
+
+const_boolean		:TRUE
+			   		|FALSE
+					;
+
+number		:INT
 		 	|OCTAL
 			|SCI
 			|FLOAT
 			;
 
-literal_constant :number
-				 ;
+varible_list	: /*epsilon*/
+				|nonEmptyvaribles
+				;
+
+nonEmptyvaribles:nonEmptyvaribles varible
+				|varible
+				;
 
 function_list : /*epsilon*/
 			  |nonEmptyfunctions
@@ -55,7 +79,7 @@ nonEmptyfunctions : function nonEmptyfunctions
 				  ;
 
 
-function	: functionName '(' arguments ')' ':' TYPE ';' functionBody END IDENT /*function*/ RETURN
+function	: functionName '(' arguments ')' ':' TYPE ';' functionBody END IDENT /*function*/
 		 | functionName '(' arguments ')' ';' functionBody END IDENT /*procedure*/
 			;
 
@@ -72,35 +96,20 @@ arguments	: /*epsilon*/
 nonEmptyDeclar : idList ':' TYPE ';' nonEmptyDeclar
 			   | idList ':' TYPE
 			   ;
-idList		: /*epsilon*/
-		| nonEmptyidList
-			;
-nonEmptyidList :identifier COMMA nonEmptyidList
-			   | identifier
-			   ;
 
-const_decl_list : nonEmptyConst_decl
+varible			:VAR idList ':' TYPE ';'
+				|VAR idList ':' ARRAY array_body OF  TYPE ';'
+				|VAR idList ':' ARRAY array_body OF ARRAY array_body OF TYPE';'
+				|VAR idList ':' literal_constant ';'
 				;
 
-nonEmptyConst_decl :nonEmptyConst_decl const_decl
-				   |const_decl
-				   ;
-
-const_decl:VAR idList ':' literal_constant ';'
-		  ;
-varible		: VAR idList ':' TYPE ';'
-		 | VAR idList ':' ARRAY int_constant TO int_constant OF TYPE ';'
-			;
-
-int_constant :INT
-			 ;
-
-varibles	: /*epsilon*/
-		 | nonEmptyvaribles
-		  ;
-nonEmptyvaribles:nonEmptyvaribles varible
-				|varible
+array_body		:int_constant TO int_constant
 				;
+
+int_constant	:INT
+				;
+
+
 
 
 statements: nonEmptystatements
@@ -119,17 +128,17 @@ statement :	compound
 		  |	while
 		  | for
 		  | return
-		  | function_invocation
+		  | function_invocation ';'
 		   ;
 
 
-compound	: BG varibles statements END
+compound	: BG varible_list statements END
 		 ;
 
-simple		:varible_reference ASSIGN expression ';'
+simple		:varible_reference ASSIGN expressions ';'
 			| PRINT varible_reference ';'
 			| PRINT expression ';'
-			| READ varible_reference
+			| READ varible_reference ';'
 			;
 
 array_reference		:identifier array_reference_list
@@ -152,35 +161,37 @@ expression	: '-' expression %prec NEG				{$$ = -$2;		}
 		   | expression '-' expression 				{$$ = $1 - $2;	}
 		   | expression '*' expression 				{$$ = $1 * $2;	}
 		   | expression '/' expression 				{$$ = $1 / $2;	}
-		   | expression MOD expression %prec '*'	{$$ = $1 % $2;	}
+		   | expression MOD expression %prec '*'
 		   | expression AND expression %prec AND	{$$ = $1 && $2;	}
 		   | expression OR  expression %prec OR		{$$ = $1 || $2;	}
 		   | NOT expression %prec NOT				{$$ = !$2;	}
 		   | '(' expression ')' %prec PARENTHESES
 		   | number									{$$ = $1;		}
-		   | IDENT
+		   | identifier
 		   | function_invocation
+		   | STRING
 		   ;
 
 /* TODO*/
 integer_expression :
 				   ;
 
-boolean_expr :  boolean_expr '>' boolean_expr 				{$$ = $1 > $2;	}
-			 | boolean_expr '<' boolean_expr 				{$$ = $1 < $2;	}
-			| boolean_expr LE boolean_expr %prec '>'	{$$ = $1 <= $2;	}
-			| boolean_expr GE boolean_expr %prec '>'	{$$ = $1 >= $2;	}
-			| boolean_expr '=' boolean_expr 				{$$ = $1 == $2;	}
-			| boolean_expr NE boolean_expr %prec '>'	{$$ = $1 != $2;	}
-			| number 									{$$ = $1;		}
-			| IDENT
+boolean_expr:expression '>' expression 				{$$ = $1 > $2;	}
+			|expression '<' expression 				{$$ = $1 < $2;	}
+			|expression LE expression %prec '>'	{$$ = $1 <= $2;	}
+			|expression GE expression %prec '>'	{$$ = $1 >= $2;	}
+			|expression '=' expression 				{$$ = $1 == $2;	}
+			|expression NE expression %prec '>'	{$$ = $1 != $2;	}
+			|const_boolean 							{$$ = $1;		}
+			|IDENT
 			;
 
-function_invocation : identifier '(' expression_list ')'
+function_invocation : identifier'('expression_list')'
 					;
 
-expression_list 	:expression
-				 |expression COMMA expression_list
+expression_list 	:/*epsilon*/
+				 	|expression
+					|expression COMMA expression_list
 					;
 
 conditional			:IF boolean_expr THEN conditional_body END IF
@@ -195,7 +206,7 @@ while				:WHILE boolean_expr DO statements END DO
 for					:FOR identifier ASSIGN int_constant TO int_constant DO statements END DO
 		;
 
-return 				: RETURN expressions
+return 				: RETURN expressions ';'
 		   ;
 
 
@@ -213,6 +224,7 @@ int yyerror( char *msg )
 
 int  main( int argc, char **argv )
 {
+	yydebug=1;
 	if( argc != 2 ) {
 		fprintf(  stdout,  "Usage:  ./parser  [filename]\n"  );
 		exit(0);

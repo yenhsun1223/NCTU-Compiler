@@ -128,6 +128,7 @@ identifier ({letter})({letter}|{digit})*
 						printf("<%s: %s>\n", "string", strContent );
 					strContent[0] = '\0';
 				  	BEGIN INITIAL;
+					return STRING;
 				  }
 				}
 <STR>"\n"			{
