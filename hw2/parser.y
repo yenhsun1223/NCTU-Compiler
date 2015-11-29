@@ -9,7 +9,7 @@ extern char buf[256];           /* declared in lex.l */
 %}
 
 /*symbols*/
-%token END COMMA VAR ARRAY OF TO BG ASSIGN PRINT READ LBRACKET RBRACKET
+%token END VAR ARRAY OF TO BG ASSIGN PRINT READ
 %token WHILE DO FOR RETURN
 %token IDENT TYPE MOD LE GE NE NOT AND OR IF THEN ELSE INT FLOAT SCI OCTAL TRUE FALSE STRING
 
@@ -43,7 +43,7 @@ idList				: /*epsilon*/
 					|nonEmptyidList
 					;
 
-nonEmptyidList		:identifier COMMA nonEmptyidList
+nonEmptyidList		:nonEmptyidList ',' identifier
 					|identifier
 					;
 
@@ -98,19 +98,16 @@ nonEmptyDeclar : idList ':' TYPE ';' nonEmptyDeclar
 			   ;
 
 varible			:VAR idList ':' TYPE ';'
-				|VAR idList ':' ARRAY array_body OF  TYPE ';'
-				|VAR idList ':' ARRAY array_body OF ARRAY array_body OF TYPE';'
+				|VAR idList ':' ARRAY int_constant TO int_constant OF array_types';'
 				|VAR idList ':' literal_constant ';'
 				;
 
-array_body		:int_constant TO int_constant
+array_types		:ARRAY int_constant TO int_constant OF array_types
+			 	| TYPE
 				;
 
 int_constant	:INT
 				;
-
-
-
 
 statements: nonEmptystatements
 		  |/*epsilon*/
@@ -120,7 +117,6 @@ nonEmptystatements : nonEmptystatements statement
 				   | statement
 				   ;
 
-/*TODO undone!!*/
 statement :	compound
 		  |	simple
 		  |	expressions
@@ -137,7 +133,7 @@ compound	: BG varible_list statements END
 
 simple		:varible_reference ASSIGN expressions ';'
 			| PRINT varible_reference ';'
-			| PRINT expression ';'
+			| PRINT expressions ';'
 			| READ varible_reference ';'
 			;
 
@@ -145,7 +141,7 @@ array_reference		:identifier array_reference_list
 				 ;
 
 array_reference_list : /*epsilon*/ /*so only idenfifier in array_reference*/
-					 |LBRACKET integer_expression RBRACKET array_reference_list
+					 |'[' integer_expression ']' array_reference_list
 					 ;
 
 varible_reference : array_reference
@@ -162,9 +158,6 @@ expression	: '-' expression %prec NEG				{$$ = -$2;		}
 		   | expression '*' expression 				{$$ = $1 * $2;	}
 		   | expression '/' expression 				{$$ = $1 / $2;	}
 		   | expression MOD expression %prec '*'
-		   | expression AND expression %prec AND	{$$ = $1 && $2;	}
-		   | expression OR  expression %prec OR		{$$ = $1 || $2;	}
-		   | NOT expression %prec NOT				{$$ = !$2;	}
 		   | '(' expression ')' %prec PARENTHESES
 		   | number									{$$ = $1;		}
 		   | identifier
@@ -172,18 +165,22 @@ expression	: '-' expression %prec NEG				{$$ = -$2;		}
 		   | STRING
 		   ;
 
-/* TODO*/
-integer_expression :
+integer_expression : int_constant
+				   | identifier
 				   ;
 
 boolean_expr:expression '>' expression 				{$$ = $1 > $2;	}
 			|expression '<' expression 				{$$ = $1 < $2;	}
-			|expression LE expression %prec '>'	{$$ = $1 <= $2;	}
-			|expression GE expression %prec '>'	{$$ = $1 >= $2;	}
+			|expression LE expression %prec '>'		{$$ = $1 <= $2;	}
+			|expression GE expression %prec '>'		{$$ = $1 >= $2;	}
 			|expression '=' expression 				{$$ = $1 == $2;	}
-			|expression NE expression %prec '>'	{$$ = $1 != $2;	}
+			|expression NE expression %prec '>'		{$$ = $1 != $2;	}
+			|expression AND expression %prec AND	{$$ = $1 && $2;	}
+			|expression OR  expression %prec OR		{$$ = $1 || $2;	}
+			|NOT expression %prec NOT				{$$ = !$2;	}
 			|const_boolean 							{$$ = $1;		}
-			|IDENT
+			|identifier
+			|function_invocation
 			;
 
 function_invocation : identifier'('expression_list')'
@@ -191,7 +188,7 @@ function_invocation : identifier'('expression_list')'
 
 expression_list 	:/*epsilon*/
 				 	|expression
-					|expression COMMA expression_list
+					|expression_list ',' expression
 					;
 
 conditional			:IF boolean_expr THEN conditional_body END IF

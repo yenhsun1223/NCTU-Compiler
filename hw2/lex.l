@@ -48,13 +48,13 @@ identifier ({letter})({letter}|{digit})*
 
 %%
 
-","				{ tokenChar(','); return COMMA;}
+","				{ tokenChar(','); return ',';}
 ";"				{ tokenChar(';'); return ';';}
 ":"				{ tokenChar(':'); return ':';}
 ")"				{ tokenChar(')'); return ')';}
 "("				{ tokenChar('('); return '(';}
-"["				{ tokenChar('['); return LBRACKET;}
-"]"				{ tokenChar(']'); return RBRACKET;}
+"["				{ tokenChar('['); return '[';}
+"]"				{ tokenChar(']'); return ']';}
 
 "+"				{ tokenChar('+'); return '+';}
 "-"				{ tokenChar('-'); return '-';}
@@ -95,7 +95,7 @@ identifier ({letter})({letter}|{digit})*
 "var"				{ token(KWvar); return VAR;}
 "while"				{ token(KWwhile); return WHILE;}
 
-{octal} { tokenOctInteger("oct_integer",yytext);return OCTAL;}
+{octal} { tokenOctInteger("oct_integer",yytext);return INT;}
 {identifier}			{ tokenString("id",yytext); return IDENT;}
 {integer}			{ tokenInteger("integer",atoi(yytext)); return INT;}
 {float}				{ tokenFloat("float",yytext); return FLOAT;}
