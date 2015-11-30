@@ -221,7 +221,6 @@ int yyerror( char *msg )
 
 int  main( int argc, char **argv )
 {
-	yydebug=1;
 	if( argc != 2 ) {
 		fprintf(  stdout,  "Usage:  ./parser  [filename]\n"  );
 		exit(0);
