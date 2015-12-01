@@ -152,14 +152,14 @@ expressions :expression
 			|boolean_expr
 			;
 
-expression	: '-' expression %prec NEG				{$$ = -$2;		}
-		   | expression '+' expression 				{$$ = $1 + $2;	}
-		   | expression '-' expression 				{$$ = $1 - $2;	}
-		   | expression '*' expression 				{$$ = $1 * $2;	}
-		   | expression '/' expression 				{$$ = $1 / $2;	}
+expression	: '-' expression %prec NEG
+		   | expression '+' expression
+		   | expression '-' expression
+		   | expression '*' expression
+		   | expression '/' expression
 		   | expression MOD expression %prec '*'
 		   | '(' expression ')' %prec PARENTHESES
-		   | number									{$$ = $1;		}
+		   | number
 		   | identifier
 		   | function_invocation
 		   | STRING
@@ -169,16 +169,16 @@ integer_expression : int_constant
 				   | identifier
 				   ;
 
-boolean_expr:expression '>' expression 				{$$ = $1 > $2;	}
-			|expression '<' expression 				{$$ = $1 < $2;	}
-			|expression LE expression %prec '>'		{$$ = $1 <= $2;	}
-			|expression GE expression %prec '>'		{$$ = $1 >= $2;	}
-			|expression '=' expression 				{$$ = $1 == $2;	}
-			|expression NE expression %prec '>'		{$$ = $1 != $2;	}
-			|expression AND expression %prec AND	{$$ = $1 && $2;	}
-			|expression OR  expression %prec OR		{$$ = $1 || $2;	}
-			|NOT expression %prec NOT				{$$ = !$2;	}
-			|const_boolean 							{$$ = $1;		}
+boolean_expr:expression '>' expression
+			|expression '<' expression
+			|expression LE expression %prec '>'
+			|expression GE expression %prec '>'
+			|expression '=' expression
+			|expression NE expression %prec '>'
+			|expression AND expression %prec AND
+			|expression OR  expression %prec OR
+			|NOT expression %prec NOT
+			|const_boolean
 			|identifier
 			|function_invocation
 			;
