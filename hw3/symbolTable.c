@@ -103,5 +103,29 @@ void yytextPrint(){
 	printf("%s ",yytext);
 }
 
-Type* BuildType(const char*);
+Type* BuildType(const char* typename){
+	Type* new = (Type*)malloc(sizeof(Type));
+	strcpy(new->name,typename);
+	new->array_signature=NULL; /*FIXME*/
+	return new;
+}
 
+Value* BuildValue(const char* typename,const char* val){
+	Type* t=BuildType(typename);
+	Value* v=(Value*) malloc(sizeof(Value));
+	v->type=t;
+	if(strcmp(t->name,"float")==0 ){
+		v->dval=atof(val);
+	}else if(strcmp(t->name,"string")==0){
+		v->sval=strdup(val);
+	}else if(strcmp(t->name,"int")==0){
+		v->ival=atoi(val);
+	}else if(strcmp(t->name,"oct_int")==0){
+		v->ival=strtol(val,NULL,8);
+	}else if(strcmp(t->name,"scientific")==0){
+		v->sval=strdup(val);
+	}else if(strcmp(t->name,"boolean")==0){
+		v->sval=strdup(val);
+	}
+	return v;
+}
