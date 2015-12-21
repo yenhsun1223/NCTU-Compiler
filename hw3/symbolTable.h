@@ -5,15 +5,11 @@ typedef struct TableEntry TableEntry;
 typedef struct SymbolTable SymbolTable;
 typedef struct IdList IdList;
 typedef struct Value Value;
+typedef struct Attribute Attribute;
 
 struct ArraySig{
 	int capacity;
 	ArraySig* next_dimension;
-};
-
-struct Type{
-	char name[16];
-	ArraySig* array_signature;
 };
 
 struct TableEntry {
@@ -21,8 +17,17 @@ struct TableEntry {
 	char kind[20];
 	int level;
 	Type* type;
-	char attribute[128];
+	Attribute* attri;
 
+};
+
+struct Attribute{
+	Value* val;
+};
+
+struct Type{
+	char name[16];
+	ArraySig* array_signature;
 };
 
 struct SymbolTable {
@@ -45,15 +50,22 @@ struct Value{
 	char* sval;
 };
 SymbolTable* BuildSymbolTable();
-void PrintSymbolTable(SymbolTable*);
 void InsertTableEntry(SymbolTable*,TableEntry*);
-TableEntry* BuildTableEntry(char*, char*,int,Type*,char*);
+void InsertTableEntryFromList(SymbolTable*,IdList*,const char*,Type*,Attribute*);
+void PopTableEntry(SymbolTable*);
+TableEntry* BuildTableEntry(char*,const char*,int,Type*,Attribute*);
+
+void PrintSymbolTable(SymbolTable*);
+void PrintLevel(int);
+void PrintType(const Type*);
+void PrintIdList(IdList*);
+void PrintAttribute(Attribute*);
+
+Attribute* BuildConstAttribute(Value*);
 
 IdList* BuildIdList();
-void PrintIdList(IdList*);
 void ResetIdList(IdList*);
 void InsertIdList(IdList*,char*);
 
 Type* BuildType(const char*);
-void PrintType(const Type*);
 Value* BuildValue(const char*,const char*);

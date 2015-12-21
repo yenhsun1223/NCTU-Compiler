@@ -19,9 +19,6 @@ SymbolTable* symbol_table;
 TableEntry* entry_buf;
 IdList* idlist_buf;
 
-
-
-
 %}
 /* types */
 %union	{
@@ -31,6 +28,7 @@ IdList* idlist_buf;
 	int nodetype;
 	Value* value;
 	Type* type;
+	TableEntry* tableentry;
 		}
 /* tokens */
 %token <str> ARRAY
@@ -87,8 +85,9 @@ IdList* idlist_buf;
 %token <str> MK_LB
 %token <str> MK_RB
 /* non-terminal */
-%type <type> scalar_type
+%type <type> scalar_type type opt_type
 %type <value> literal_const int_const
+%type <tableentry> func_decl
 
 /* start symbol */
 %start program
@@ -98,6 +97,8 @@ program			: ID MK_SEMICOLON
 				program_body
 				END ID
 				{
+					TableEntry* tmp=BuildTableEntry($1,"program",symbol_table->current_level,BuildType("void"),NULL);
+					InsertTableEntry(symbol_table,tmp);
 					PrintSymbolTable(symbol_table);
 				}
 			;
@@ -114,21 +115,22 @@ decl_list		: decl_list decl
 			;
 
 decl			: VAR id_list MK_COLON scalar_type MK_SEMICOLON  /* scalar type declaration */
-		{
-			int i;
-			for(i=0; i < idlist_buf->pos; i++){
-				TableEntry* new_entry=BuildTableEntry(idlist_buf->Ids[i],"test",\
-				symbol_table->current_level,$4,"null");
-				InsertTableEntry(symbol_table,new_entry);
+			{
+				InsertTableEntryFromList(symbol_table,idlist_buf,"varible",$4,NULL);
+				ResetIdList(idlist_buf);
 			}
-			ResetIdList(idlist_buf);
 
-		}
 			| VAR id_list MK_COLON array_type MK_SEMICOLON       /* array type declaration */
 			| VAR id_list MK_COLON literal_const MK_SEMICOLON     /* const declaration */
+			{
+				Attribute* tmp_attri=BuildConstAttribute($4);
+				InsertTableEntryFromList(symbol_table,idlist_buf,"constant",$4->type,tmp_attri);
+				ResetIdList(idlist_buf);
+			}
+
 			;
-int_const	:	INT_CONST		{$$=BuildValue("int",yytext);}
-			|	OCTAL_CONST 	{$$=BuildValue("oct_int",yytext);}
+int_const	:	INT_CONST		{$$=BuildValue("integer",yytext);}
+			|	OCTAL_CONST 	{$$=BuildValue("octal",yytext);}
 			;
 /*FIXME*/
 literal_const		: int_const {$$=$1;}
@@ -146,13 +148,22 @@ opt_func_decl_list	: func_decl_list
 			| /* epsilon */
 			;
 
-func_decl_list		: func_decl_list func_decl
-			| func_decl
+func_decl_list		: func_decl_list func_decl {InsertTableEntry(symbol_table,$2);}
+					| func_decl					{InsertTableEntry(symbol_table,$1);}
+
 			;
 
-func_decl		: ID MK_LPAREN opt_param_list MK_RPAREN opt_type MK_SEMICOLON
-			  compound_stmt
-			  END ID
+func_decl		: ID
+				MK_LPAREN { symbol_table->current_level++;}
+				opt_param_list
+				MK_RPAREN { symbol_table->current_level--; }
+				opt_type
+				MK_SEMICOLON
+				compound_stmt
+				END ID
+				{
+					$$=BuildTableEntry($1,"function",symbol_table->current_level,$7,NULL);
+				}
 			;
 
 opt_param_list		: param_list
@@ -164,18 +175,22 @@ param_list		: param_list MK_SEMICOLON param
 			;
 
 param			: id_list MK_COLON type
+				{
+					InsertTableEntryFromList(symbol_table,idlist_buf,"parameter",$3,NULL);
+					ResetIdList(idlist_buf);
+				}
 			;
 
 id_list			: id_list MK_COMMA ID 	{InsertIdList(idlist_buf,yytext);}
-			| ID 						{InsertIdList(idlist_buf,yytext);}
+				| ID 					{InsertIdList(idlist_buf,yytext);}
 			;
 
-opt_type		: MK_COLON type
-			| /* epsilon */
+opt_type		: MK_COLON type {$$=$2;}
+			| /* epsilon */		{$$=BuildType("");}
 			;
 
-type			: scalar_type
-			| array_type
+type			: scalar_type 	{$$=$1;}
+			| array_type 		{$$=BuildType("testArray");}
 			;
 
 scalar_type		: INTEGER 	{$$=BuildType("integer");}
@@ -200,10 +215,11 @@ compound_stmt		: BEG 		{symbol_table->current_level++;}
 			  opt_decl_list
 			  opt_stmt_list
 			  END
-			  {
+			{
 				PrintSymbolTable(symbol_table);
+				PopTableEntry(symbol_table);
 				symbol_table->current_level--;
-			  }
+			}
 
 			;
 
