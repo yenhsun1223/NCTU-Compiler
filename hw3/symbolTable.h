@@ -8,10 +8,12 @@ typedef struct IdList IdList;
 typedef struct Value Value;
 typedef struct Attribute Attribute;
 
-struct ArraySig{
+struct SymbolTable {
+	int current_level;
+	int pos;
 	int capacity;
-	ArraySig* next_dimension;
-};
+	TableEntry** Entries;
+} ;
 
 struct TableEntry {
 	char name[33];
@@ -20,6 +22,11 @@ struct TableEntry {
 	Type* type;
 	Attribute* attri;
 
+};
+
+struct ArraySig{
+	int capacity;
+	ArraySig* next_dimension;
 };
 
 struct Attribute{
@@ -31,13 +38,6 @@ struct Type{
 	char name[16];
 	ArraySig* array_signature;
 };
-
-struct SymbolTable {
-	int current_level;
-	int pos;
-	int capacity;
-	TableEntry** Entries;
-} ;
 
 struct TypeList{
 	int current_size;
@@ -57,6 +57,7 @@ struct Value{
 	double dval;
 	char* sval;
 };
+
 SymbolTable* BuildSymbolTable();
 void InsertTableEntry(SymbolTable*,TableEntry*);
 void InsertTableEntryFromList(SymbolTable*,IdList*,const char*,Type*,Attribute*);
@@ -79,6 +80,7 @@ void InsertIdList(IdList*,char*);
 
 Type* BuildType(const char*);
 Type* AddArrayToType(Type*,int);
-TypeList* AddTypeToList(TypeList*,Type*);
+TypeList* AddTypeToList(TypeList*,Type*,int);
+TypeList* ExtendTypelist(TypeList*,TypeList*);
 
 Value* BuildValue(const char*,const char*);

@@ -86,8 +86,8 @@ IdList* idlist_buf;
 %token <str> MK_LB
 %token <str> MK_RB
 /* non-terminal */
-%type <type> scalar_type type opt_type array_type param
-%type <typelist> param_list opt_param_list
+%type <type> scalar_type type opt_type array_type
+%type <typelist> param_list opt_param_list param
 %type <value> literal_const int_const
 %type <tableentry> func_decl
 
@@ -177,13 +177,13 @@ opt_param_list		: param_list
 			| 						{$$=NULL;}
 			;
 
-param_list		: param_list MK_SEMICOLON param {$$=AddTypeToList($1,$3);}
-			| param 							{$$=AddTypeToList(NULL,$1);}
+param_list		: param_list MK_SEMICOLON param {$$=ExtendTypelist($1,$3);}
+			| param 							{$$=$1;}
 			;
 
 param			: id_list MK_COLON type
 				{
-					$$=$3;
+					$$=AddTypeToList(NULL,$3,idlist_buf->pos);
 					InsertTableEntryFromList(symbol_table,idlist_buf,"parameter",$3,NULL);
 					ResetIdList(idlist_buf);
 				}

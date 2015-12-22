@@ -207,26 +207,47 @@ Type* AddArrayToType(Type* t,int d){
 	return t;
 }
 
-TypeList* AddTypeToList(TypeList* l,Type* t){
+TypeList* AddTypeToList(TypeList* l,Type* t,int cnt){
+	int i;
 	if(l==NULL){
 		l=(TypeList*)malloc(sizeof(TypeList));
 		l->types=(Type**)malloc(sizeof(Type**)*4);
 		l->capacity=4;
 		l->current_size=0;
 	}
-	if(l->current_size== l->capacity){
+	if(l->current_size <= l->capacity+cnt){
 		l->capacity*=2;
 		Type** tmp=l->types;
 		l->types=(Type**)malloc(sizeof(Type**)*l->capacity);
-		int i;
 		for(i=0;i<l->current_size;i++){
 			(l->types)[i] = tmp[i];
 		}
 		free(tmp);
 	}
-
-	l->types[l->current_size++]=t;
+	for(i=0;i<cnt;i++){
+		l->types[l->current_size++]=t;
+	}
 	return l;
+}
+TypeList* ExtendTypelist(TypeList* dest,TypeList* src){
+	int i;
+	if(dest->capacity- dest->current_size < src->current_size){
+		while((dest->capacity - dest->current_size) < src->current_size){
+			dest->capacity*=2;
+		}
+		Type** tmp=dest->types;
+		dest->types=(Type**)malloc(sizeof(Type**)*dest->capacity);
+
+		for(i=0;i<dest->current_size;i++){
+			(dest->types)[i] = tmp[i];
+		}
+		free(tmp);
+	}
+	for(i=0;i<src->current_size;i++){
+		dest->types[dest->current_size++]=src->types[i];
+	}
+	free(src);
+	return dest;
 }
 
 Value* BuildValue(const char* typename,const char* val){
