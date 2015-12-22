@@ -122,7 +122,7 @@ void PrintSymbolTable(SymbolTable* t){
 		if(ptr->level==t->current_level){
 			printf("%-32s\t%-11s\t",ptr->name,ptr->kind);
 			PrintLevel(ptr->level);
-			PrintType(ptr->type);
+			printf("%-17s\t",PrintType(ptr->type));
 			PrintAttribute(ptr->attri);
 			printf("\n");
 		}
@@ -133,9 +133,20 @@ void PrintSymbolTable(SymbolTable* t){
 	printf("\n");
 }
 
-/*FIXME*/
-void PrintType(const Type* t){
-	printf("%-17s\t",t->name);
+char* PrintType(const Type* t){
+	ArraySig* ptr=t->array_signature;
+	char* output_buf=(char*)malloc(sizeof(char)*18);
+	char tmp_buf[5];
+	int name_len=strlen(t->name)+1;
+	memset(output_buf,0,18);
+	snprintf(output_buf,name_len,"%s",t->name);
+
+	while(ptr!=NULL){
+		snprintf(tmp_buf,4,"[%d]",ptr->capacity);
+		strcat(output_buf,tmp_buf);
+		ptr=ptr->next_dimension;
+	}
+	return output_buf;
 }
 
 void PrintAttribute(Attribute* a){
@@ -150,6 +161,13 @@ void PrintAttribute(Attribute* a){
 			printf("%-11f\t",a->val->dval);
 		else if(strcmp(a->val->type->name,"boolean")==0)
 			printf("%-11s\t",a->val->sval);
+	}else if(a->type_list!=NULL){
+		TypeList* l=a->type_list;
+		int i;
+		printf("%s",PrintType(l->types[0]));
+		for(i=1;i<l->current_size;i++){
+			printf(",%s",PrintType(l->types[i]));
+		}
 	}
 }
 
@@ -169,11 +187,47 @@ void yytextPrint(){
 Type* BuildType(const char* typename){
 	Type* new = (Type*)malloc(sizeof(Type));
 	strcpy(new->name,typename);
-	new->array_signature=NULL; /*FIXME*/
+	new->array_signature=NULL; /*TODO*/
 	return new;
 }
 
+Type* AddArrayToType(Type* t,int d){
+	ArraySig* it;
+	if(t->array_signature==NULL){
+		t->array_signature=(ArraySig*)malloc(sizeof(ArraySig));
+		t->array_signature->capacity=d;
+		t->array_signature->next_dimension=NULL;
+	}else{
+		it=t->array_signature;
+		while(it->next_dimension!=NULL) it=it->next_dimension;
+		it->next_dimension=(ArraySig*)malloc(sizeof(ArraySig));
+		it->next_dimension->capacity=d;
+		it->next_dimension->next_dimension=NULL;
+	}
+	return t;
+}
 
+TypeList* AddTypeToList(TypeList* l,Type* t){
+	if(l==NULL){
+		l=(TypeList*)malloc(sizeof(TypeList));
+		l->types=(Type**)malloc(sizeof(Type**)*4);
+		l->capacity=4;
+		l->current_size=0;
+	}
+	if(l->current_size== l->capacity){
+		l->capacity*=2;
+		Type** tmp=l->types;
+		l->types=(Type**)malloc(sizeof(Type**)*l->capacity);
+		int i;
+		for(i=0;i<l->current_size;i++){
+			(l->types)[i] = tmp[i];
+		}
+		free(tmp);
+	}
+
+	l->types[l->current_size++]=t;
+	return l;
+}
 
 Value* BuildValue(const char* typename,const char* val){
 	Type* t=BuildType(typename);
@@ -198,5 +252,14 @@ Value* BuildValue(const char* typename,const char* val){
 Attribute* BuildConstAttribute(Value* v){
 	Attribute* a=(Attribute*)malloc(sizeof(Attribute));
 	a->val=v;
+	a->type_list=NULL;
 	return a;
 }
+Attribute* BuildFuncAttribute(TypeList* l){
+	Attribute* a=(Attribute*)malloc(sizeof(Attribute));
+	a->type_list=l;
+	a->val=NULL;
+	return a;
+}
+
+

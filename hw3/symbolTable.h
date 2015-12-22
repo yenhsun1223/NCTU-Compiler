@@ -1,6 +1,7 @@
 extern char *yytext;		/* declared by lex */
 typedef struct ArraySig ArraySig;
 typedef struct Type Type;
+typedef struct TypeList TypeList;
 typedef struct TableEntry TableEntry;
 typedef struct SymbolTable SymbolTable;
 typedef struct IdList IdList;
@@ -23,6 +24,7 @@ struct TableEntry {
 
 struct Attribute{
 	Value* val;
+	TypeList* type_list;
 };
 
 struct Type{
@@ -36,6 +38,12 @@ struct SymbolTable {
 	int capacity;
 	TableEntry** Entries;
 } ;
+
+struct TypeList{
+	int current_size;
+	int capacity;
+	Type** types;
+};
 
 struct IdList{
 	int pos;
@@ -55,17 +63,22 @@ void InsertTableEntryFromList(SymbolTable*,IdList*,const char*,Type*,Attribute*)
 void PopTableEntry(SymbolTable*);
 TableEntry* BuildTableEntry(char*,const char*,int,Type*,Attribute*);
 
+
 void PrintSymbolTable(SymbolTable*);
 void PrintLevel(int);
-void PrintType(const Type*);
+char* PrintType(const Type*);
 void PrintIdList(IdList*);
 void PrintAttribute(Attribute*);
 
 Attribute* BuildConstAttribute(Value*);
+Attribute* BuildFuncAttribute(TypeList*);
 
 IdList* BuildIdList();
 void ResetIdList(IdList*);
 void InsertIdList(IdList*,char*);
 
 Type* BuildType(const char*);
+Type* AddArrayToType(Type*,int);
+TypeList* AddTypeToList(TypeList*,Type*);
+
 Value* BuildValue(const char*,const char*);

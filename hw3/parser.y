@@ -29,6 +29,7 @@ IdList* idlist_buf;
 	Value* value;
 	Type* type;
 	TableEntry* tableentry;
+	TypeList* typelist;
 		}
 /* tokens */
 %token <str> ARRAY
@@ -85,7 +86,8 @@ IdList* idlist_buf;
 %token <str> MK_LB
 %token <str> MK_RB
 /* non-terminal */
-%type <type> scalar_type type opt_type
+%type <type> scalar_type type opt_type array_type param
+%type <typelist> param_list opt_param_list
 %type <value> literal_const int_const
 %type <tableentry> func_decl
 
@@ -121,6 +123,10 @@ decl			: VAR id_list MK_COLON scalar_type MK_SEMICOLON  /* scalar type declarati
 			}
 
 			| VAR id_list MK_COLON array_type MK_SEMICOLON       /* array type declaration */
+			{
+				InsertTableEntryFromList(symbol_table,idlist_buf,"varible",$4,NULL);
+				ResetIdList(idlist_buf);
+			}
 			| VAR id_list MK_COLON literal_const MK_SEMICOLON     /* const declaration */
 			{
 				Attribute* tmp_attri=BuildConstAttribute($4);
@@ -162,20 +168,22 @@ func_decl		: ID
 				compound_stmt
 				END ID
 				{
-					$$=BuildTableEntry($1,"function",symbol_table->current_level,$7,NULL);
+					Attribute* func_attr=BuildFuncAttribute($4);
+					$$=BuildTableEntry($1,"function",symbol_table->current_level,$7,func_attr);
 				}
 			;
 
 opt_param_list		: param_list
-			| /* epsilon */
+			| 						{$$=NULL;}
 			;
 
-param_list		: param_list MK_SEMICOLON param
-			| param
+param_list		: param_list MK_SEMICOLON param {$$=AddTypeToList($1,$3);}
+			| param 							{$$=AddTypeToList(NULL,$1);}
 			;
 
 param			: id_list MK_COLON type
 				{
+					$$=$3;
 					InsertTableEntryFromList(symbol_table,idlist_buf,"parameter",$3,NULL);
 					ResetIdList(idlist_buf);
 				}
@@ -190,7 +198,7 @@ opt_type		: MK_COLON type {$$=$2;}
 			;
 
 type			: scalar_type 	{$$=$1;}
-			| array_type 		{$$=BuildType("testArray");}
+			| array_type 		{$$=$1;}
 			;
 
 scalar_type		: INTEGER 	{$$=BuildType("integer");}
@@ -200,6 +208,10 @@ scalar_type		: INTEGER 	{$$=BuildType("integer");}
 			;
 
 array_type		: ARRAY int_const TO int_const OF type
+			{
+				int sz=($4->ival)-($2->ival);
+				$$=AddArrayToType($6,sz);
+			}
 			;
 
 stmt			: compound_stmt
