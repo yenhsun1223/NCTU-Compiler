@@ -68,6 +68,10 @@ TableEntry* BuildTableEntry(char* name,const char* kind,int level,Type* type,Att
 }
 
 void InsertTableEntry(SymbolTable* t,TableEntry* e){
+	if(FindEntryInScope(t,e->name)!=NULL){
+		printf("Error at Line#%d: symbol %s is redeclared\n",linenum,e->name);
+		return;
+	}
 	//grow the capacity
 	if(t->pos == t->capacity){
 		t->capacity*=2;
@@ -113,6 +117,10 @@ void InsertTableEntryFromList(SymbolTable* t,IdList* l,const char* kind,Type* ty
 void PrintSymbolTable(SymbolTable* t){
 	int i;
 	TableEntry* ptr;
+
+	for(i=0;i< 110;i++)
+		printf("=");
+	printf("\n");
 	printf("%-32s\t%-11s\t%-11s\t%-17s\t%-11s\t\n","Name","Kind","Level","Type","Attribute");
 	for(i=0;i< 110;i++)
 		printf("-");
@@ -129,7 +137,7 @@ void PrintSymbolTable(SymbolTable* t){
 
 	}
 	for(i=0;i< 110;i++)
-		printf("-");
+		printf("=");
 	printf("\n");
 }
 
@@ -283,4 +291,23 @@ Attribute* BuildFuncAttribute(TypeList* l){
 	return a;
 }
 
+TableEntry* FindEntryInScope(SymbolTable* tbl,char* name){
+	int i;
+	for(i=0;i<tbl->pos;i++){
+		TableEntry* it=tbl->Entries[i];
+		if(strcmp(name,it->name)==0 && it->level==tbl->current_level){
+			return it;
+		}
+	}
+	return NULL;
+}
+
+EntryRef* FindEntryRef(SymbolTable* tbl,char* name){
+	EntryRef* e =(EntryRef*)malloc(sizeof(EntryRef));
+	TableEntry* tmp=FindEntryInScope(tbl,name);
+	strcpy(e->name,name);
+	e->current_dimension=0;
+	e->entry=tmp;
+	return e;
+}
 

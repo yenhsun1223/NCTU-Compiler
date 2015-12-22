@@ -1,4 +1,5 @@
 extern char *yytext;		/* declared by lex */
+extern int linenum;		/* declared in lex.l */
 typedef struct ArraySig ArraySig;
 typedef struct Type Type;
 typedef struct TypeList TypeList;
@@ -7,6 +8,7 @@ typedef struct SymbolTable SymbolTable;
 typedef struct IdList IdList;
 typedef struct Value Value;
 typedef struct Attribute Attribute;
+typedef struct EntryRef EntryRef;
 
 struct SymbolTable {
 	int current_level;
@@ -45,6 +47,12 @@ struct TypeList{
 	Type** types;
 };
 
+struct EntryRef{
+	char name[33];
+	TableEntry* entry;
+	int current_dimension;
+};
+
 struct IdList{
 	int pos;
 	int capacity;
@@ -63,6 +71,7 @@ void InsertTableEntry(SymbolTable*,TableEntry*);
 void InsertTableEntryFromList(SymbolTable*,IdList*,const char*,Type*,Attribute*);
 void PopTableEntry(SymbolTable*);
 TableEntry* BuildTableEntry(char*,const char*,int,Type*,Attribute*);
+TableEntry* FindEntryInScope(SymbolTable*,char*);
 
 
 void PrintSymbolTable(SymbolTable*);
@@ -74,6 +83,8 @@ void PrintAttribute(Attribute*);
 Attribute* BuildConstAttribute(Value*);
 Attribute* BuildFuncAttribute(TypeList*);
 
+EntryRef* FindEntryRef(SymbolTable*,char*);
+
 IdList* BuildIdList();
 void ResetIdList(IdList*);
 void InsertIdList(IdList*,char*);
@@ -84,3 +95,4 @@ TypeList* AddTypeToList(TypeList*,Type*,int);
 TypeList* ExtendTypelist(TypeList*,TypeList*);
 
 Value* BuildValue(const char*,const char*);
+

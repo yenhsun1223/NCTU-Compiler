@@ -30,6 +30,7 @@ IdList* idlist_buf;
 	Type* type;
 	TableEntry* tableentry;
 	TypeList* typelist;
+	EntryRef* entryref;
 		}
 /* tokens */
 %token <str> ARRAY
@@ -90,6 +91,7 @@ IdList* idlist_buf;
 %type <typelist> param_list opt_param_list param
 %type <value> literal_const int_const
 %type <tableentry> func_decl
+%type <entryref> var_ref
 
 /* start symbol */
 %start program
@@ -244,6 +246,8 @@ stmt_list		: stmt_list stmt
 			;
 
 simple_stmt		: var_ref OP_ASSIGN boolean_expr MK_SEMICOLON
+			 {
+			 }
 			| PRINT boolean_expr MK_SEMICOLON
 			| READ boolean_expr MK_SEMICOLON
 			;
@@ -330,8 +334,12 @@ factor			: var_ref
 			| literal_const
 			;
 
-var_ref			: ID
+var_ref			: ID		{$$=FindEntryRef(symbol_table,$1);}
 			| var_ref dim
+			{
+				$1->current_dimension++;
+				$$=$1;
+			}
 			;
 
 dim			: MK_LB boolean_expr MK_RB
