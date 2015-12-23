@@ -9,15 +9,18 @@
 #include "symbolTable.h"
 
 extern int linenum;		/* declared in lex.l */
+
 extern FILE *yyin;		/* declared by lex */
 extern char *yytext;		/* declared by lex */
 extern char buf[256];		/* declared in lex.l */
 extern int yylex(void);
 int yyerror(char* );
 
+
 SymbolTable* symbol_table;
 TableEntry* entry_buf;
 IdList* idlist_buf;
+Type* return_buf;
 
 %}
 /* types */
@@ -30,7 +33,8 @@ IdList* idlist_buf;
 	Type* type;
 	TableEntry* tableentry;
 	TypeList* typelist;
-	EntryRef* entryref;
+	Expr* expression;
+	ExprList* exprlist;
 		}
 /* tokens */
 %token <str> ARRAY
@@ -63,21 +67,21 @@ IdList* idlist_buf;
 %token <str> SCIENTIFIC
 %token <str> STR_CONST
 
-%token OP_ADD
-%token OP_SUB
-%token OP_MUL
-%token OP_DIV
-%token OP_MOD
-%token OP_ASSIGN
-%token OP_EQ
-%token OP_NE
-%token OP_GT
-%token OP_LT
-%token OP_GE
-%token OP_LE
-%token OP_AND
-%token OP_OR
-%token OP_NOT
+%token <str> OP_ADD
+%token <str> OP_SUB
+%token <str> OP_MUL
+%token <str> OP_DIV
+%token <str> OP_MOD
+%token <str> OP_ASSIGN
+%token <str> OP_EQ
+%token <str> OP_NE
+%token <str> OP_GT
+%token <str> OP_LT
+%token <str> OP_GE
+%token <str> OP_LE
+%token <str> OP_AND
+%token <str> OP_OR
+%token <str> OP_NOT
 
 %token <str> MK_COMMA
 %token <str> MK_COLON
@@ -87,11 +91,14 @@ IdList* idlist_buf;
 %token <str> MK_LB
 %token <str> MK_RB
 /* non-terminal */
+%type <str> rel_op mul_op
 %type <type> scalar_type type opt_type array_type
 %type <typelist> param_list opt_param_list param
 %type <value> literal_const int_const
 %type <tableentry> func_decl
-%type <entryref> var_ref
+%type <expression> var_ref factor boolean_expr term boolean_term boolean_factor relop_expr expr return_stmt
+%type <exprlist> boolean_expr_list opt_boolean_expr_list
+
 
 /* start symbol */
 %start program
@@ -143,8 +150,8 @@ int_const	:	INT_CONST		{$$=BuildValue("integer",yytext);}
 /*FIXME*/
 literal_const		: int_const {$$=$1;}
 			| OP_SUB int_const  {$$=$2;}
-			| FLOAT_CONST 		{$$=BuildValue("float",yytext);}
-			| OP_SUB FLOAT_CONST {$$=BuildValue("float",yytext);}
+			| FLOAT_CONST 		{$$=BuildValue("real",yytext);}
+			| OP_SUB FLOAT_CONST {$$=BuildValue("real",yytext);}
 			| SCIENTIFIC		{$$=BuildValue("scientific",yytext);}
 			| OP_SUB SCIENTIFIC {$$=BuildValue("scientific",yytext);}
 			| STR_CONST 		{$$=BuildValue("string",yytext);}
@@ -165,13 +172,14 @@ func_decl		: ID
 				MK_LPAREN { symbol_table->current_level++;}
 				opt_param_list
 				MK_RPAREN { symbol_table->current_level--; }
-				opt_type
+				opt_type  {return_buf=$7;}
 				MK_SEMICOLON
 				compound_stmt
 				END ID
 				{
 					Attribute* func_attr=BuildFuncAttribute($4);
 					$$=BuildTableEntry($1,"function",symbol_table->current_level,$7,func_attr);
+
 				}
 			;
 
@@ -196,7 +204,7 @@ id_list			: id_list MK_COMMA ID 	{InsertIdList(idlist_buf,yytext);}
 			;
 
 opt_type		: MK_COLON type {$$=$2;}
-			| /* epsilon */		{$$=BuildType("");}
+			| /* epsilon */		{$$=BuildType("void");}
 			;
 
 type			: scalar_type 	{$$=$1;}
@@ -211,7 +219,7 @@ scalar_type		: INTEGER 	{$$=BuildType("integer");}
 
 array_type		: ARRAY int_const TO int_const OF type
 			{
-				int sz=($4->ival)-($2->ival);
+				int sz=($4->ival)-($2->ival)+1;
 				$$=AddArrayToType($6,sz);
 			}
 			;
@@ -221,7 +229,7 @@ stmt			: compound_stmt
 			| cond_stmt
 			| while_stmt
 			| for_stmt
-			| return_stmt
+			| return_stmt {CheckFuncRet(return_buf,$1); return_buf=NULL;}
 			| proc_call_stmt
 			;
 
@@ -247,6 +255,10 @@ stmt_list		: stmt_list stmt
 
 simple_stmt		: var_ref OP_ASSIGN boolean_expr MK_SEMICOLON
 			 {
+			 	if(!CheckConstAssign($1)){
+
+					CheckType($1,$3);
+				}
 			 }
 			| PRINT boolean_expr MK_SEMICOLON
 			| READ boolean_expr MK_SEMICOLON
@@ -273,30 +285,33 @@ for_stmt		: FOR ID OP_ASSIGN int_const TO int_const DO
 			  END DO
 			;
 
-return_stmt		: RETURN boolean_expr MK_SEMICOLON
+return_stmt		: RETURN boolean_expr MK_SEMICOLON{$$=$2;}
 			;
 
 opt_boolean_expr_list	: boolean_expr_list
-			| /* epsilon */
+			| /* epsilon */ {$$=NULL;}
 			;
 
-boolean_expr_list	: boolean_expr_list MK_COMMA boolean_expr
-			| boolean_expr
+boolean_expr_list	: boolean_expr_list MK_COMMA boolean_expr {$$=BuildExprList($1,$3);}
+			| boolean_expr {$$=BuildExprList(NULL,$1);}
 			;
 
-boolean_expr		: boolean_expr OP_OR boolean_term
+boolean_expr		: boolean_expr OP_OR boolean_term {$$=$3;}
 			| boolean_term
 			;
 
-boolean_term		: boolean_term OP_AND boolean_factor
+boolean_term		: boolean_term OP_AND boolean_factor {$$=$3;}
 			| boolean_factor
 			;
 
-boolean_factor		: OP_NOT boolean_factor
+boolean_factor		: OP_NOT boolean_factor {$$=$2;}
 			| relop_expr
 			;
 
 relop_expr		: expr rel_op expr
+			{
+				$$=RelationalOp($1,$3,$2);
+			}
 			| expr
 			;
 
@@ -308,7 +323,7 @@ rel_op			: OP_LT
 			| OP_NE
 			;
 
-expr			: expr add_op term
+expr			: expr add_op term {$$=$3;}
 			| term
 			;
 
@@ -317,7 +332,11 @@ add_op			: OP_ADD
 			;
 
 term			: term mul_op factor
-			| factor
+			   {
+				$$=$1;
+				MulOp($1,$3,$2);
+			   }
+			| factor {$$=$1;}
 			;
 
 mul_op			: OP_MUL
@@ -326,15 +345,18 @@ mul_op			: OP_MUL
 			;
 
 factor			: var_ref
-			| OP_SUB var_ref
-			| MK_LPAREN boolean_expr MK_RPAREN
-			| OP_SUB MK_LPAREN boolean_expr MK_RPAREN
-			| ID MK_LPAREN opt_boolean_expr_list MK_RPAREN
+			| OP_SUB var_ref {$$=$2;}
+			| MK_LPAREN boolean_expr MK_RPAREN {$$=$2;}
+			| OP_SUB MK_LPAREN boolean_expr MK_RPAREN {$$=$3;}
+			| ID MK_LPAREN opt_boolean_expr_list MK_RPAREN {$$=FunctionCall($1,$3);}
 			| OP_SUB ID MK_LPAREN opt_boolean_expr_list MK_RPAREN
-			| literal_const
+			{
+				$$=FunctionCall($2,$4);
+			}
+			| literal_const {$$=ConstExpr($1);}
 			;
 
-var_ref			: ID		{$$=FindEntryRef(symbol_table,$1);}
+var_ref			: ID		{$$=FindVarRef(symbol_table,$1);}
 			| var_ref dim
 			{
 				$1->current_dimension++;

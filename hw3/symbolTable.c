@@ -130,7 +130,7 @@ void PrintSymbolTable(SymbolTable* t){
 		if(ptr->level==t->current_level){
 			printf("%-32s\t%-11s\t",ptr->name,ptr->kind);
 			PrintLevel(ptr->level);
-			printf("%-17s\t",PrintType(ptr->type));
+			printf("%-17s\t",PrintType(ptr->type,0));
 			PrintAttribute(ptr->attri);
 			printf("\n");
 		}
@@ -141,7 +141,7 @@ void PrintSymbolTable(SymbolTable* t){
 	printf("\n");
 }
 
-char* PrintType(const Type* t){
+char* PrintType(const Type* t,int current_dim){
 	ArraySig* ptr=t->array_signature;
 	char* output_buf=(char*)malloc(sizeof(char)*18);
 	char tmp_buf[5];
@@ -150,8 +150,12 @@ char* PrintType(const Type* t){
 	snprintf(output_buf,name_len,"%s",t->name);
 
 	while(ptr!=NULL){
-		snprintf(tmp_buf,4,"[%d]",ptr->capacity);
-		strcat(output_buf,tmp_buf);
+		if(current_dim){
+			current_dim--;
+		}else{
+			snprintf(tmp_buf,4,"[%d]",ptr->capacity);
+			strcat(output_buf,tmp_buf);
+		}
 		ptr=ptr->next_dimension;
 	}
 	return output_buf;
@@ -165,16 +169,16 @@ void PrintAttribute(Attribute* a){
 			printf("%-11s\t",a->val->sval);
 		else if(strcmp(a->val->type->name,"integer")==0)
 			printf("%-11d\t",a->val->ival);
-		else if(strcmp(a->val->type->name,"float")==0)
+		else if(strcmp(a->val->type->name,"real")==0)
 			printf("%-11f\t",a->val->dval);
 		else if(strcmp(a->val->type->name,"boolean")==0)
 			printf("%-11s\t",a->val->sval);
 	}else if(a->type_list!=NULL){
 		TypeList* l=a->type_list;
 		int i;
-		printf("%s",PrintType(l->types[0]));
+		printf("%s",PrintType(l->types[0],0));
 		for(i=1;i<l->current_size;i++){
-			printf(",%s",PrintType(l->types[i]));
+			printf(",%s",PrintType(l->types[i],0));
 		}
 	}
 }
@@ -262,7 +266,7 @@ Value* BuildValue(const char* typename,const char* val){
 	Type* t=BuildType(typename);
 	Value* v=(Value*) malloc(sizeof(Value));
 	v->type=t;
-	if(strcmp(t->name,"float")==0 ){
+	if(strcmp(t->name,"real")==0 ){
 		v->dval=atof(val);
 	}else if(strcmp(t->name,"string")==0){
 		v->sval=strdup(val);
@@ -302,12 +306,184 @@ TableEntry* FindEntryInScope(SymbolTable* tbl,char* name){
 	return NULL;
 }
 
-EntryRef* FindEntryRef(SymbolTable* tbl,char* name){
-	EntryRef* e =(EntryRef*)malloc(sizeof(EntryRef));
+TableEntry* FindEntryInGlobal(SymbolTable* tbl,char* name){
+	int i;
+	for(i=0;i<tbl->pos;i++){
+		TableEntry* it=tbl->Entries[i];
+		if(strcmp(name,it->name)==0 && it->level==0){
+			return it;
+		}
+	}
+	return NULL;
+}
+
+Expr* FindVarRef(SymbolTable* tbl,char* name){
+	Expr* e =(Expr*)malloc(sizeof(Expr));
 	TableEntry* tmp=FindEntryInScope(tbl,name);
+	if(tmp==NULL)tmp=FindEntryInGlobal(tbl,name);
+	if(tmp==NULL){
+		printf("Error at Line#%d: symbol %s is not declared\n",linenum,name);
+		return NULL;
+	}
+	strcpy(e->kind,"var");
 	strcpy(e->name,name);
 	e->current_dimension=0;
 	e->entry=tmp;
+	e->type=e->entry->type;
 	return e;
 }
 
+Expr* ConstExpr(Value* v){
+	Expr* e =(Expr*)malloc(sizeof(Expr));
+	strcpy(e->kind,"const");
+	e->current_dimension=0;
+	e->entry=NULL;
+	e->type=v->type;
+	return e;
+}
+/*TODO*/
+Expr* FunctionCall(char* name,ExprList* l){
+	int i;
+	Expr* e =(Expr*)malloc(sizeof(Expr));
+	strcpy(e->kind,"function");
+	strcpy(e->name,name);
+	e->current_dimension=0;
+	e->entry=FindEntryInGlobal(symbol_table,name);
+	e->type=e->entry->type;
+	if(e==NULL){
+		printf("Error at Line#%d: function %s is not declared\n",linenum,name);
+		return NULL;
+	}
+	if(l==NULL){
+		e->para=NULL;
+	}else{
+		TypeList* para=AddTypeToList(NULL,l->exprs[0]->type,1);
+		for(i=1;i<l->current_size;i++){
+			AddTypeToList(para,l->exprs[i]->type,1);
+		}
+		e->para=para;
+	}
+	if(!CheckFuncParaNum(e)){ //typecheck
+		int i;
+		if(e->para==NULL) return e;//void function
+		for(i=0;i<e->para->current_size;i++){
+			if(strcmp( PrintType(l->exprs[i]->type,l->exprs[i]->current_dimension),\
+						PrintType(e->entry->attri->type_list->types[i],0))!=0){
+				printf("Error at Line#%d: parameter type mismatch\n",linenum);
+				printf("Error at Line#%d: type mismatch, LHS= %s, RHS= \n",\
+				linenum,PrintType(e->entry->attri->type_list->types[i],0));
+				return e;
+			}
+		}
+	}
+	return e;
+}
+
+ExprList* BuildExprList(ExprList* l,Expr* e){
+	int i;
+	if(l==NULL){
+		l=(ExprList*)malloc(sizeof(ExprList));
+		l->exprs=(Expr**)malloc(sizeof(Expr**)*4);
+		l->capacity=4;
+		l->current_size=0;
+	}
+	if(l->current_size == l->capacity){
+		l->capacity*=2;
+		Expr** tmp=l->exprs;
+		l->exprs=(Expr**)malloc(sizeof(Expr**)*l->capacity);
+		for(i=0;i<l->current_size;i++){
+			(l->exprs)[i] = tmp[i];
+		}
+		free(tmp);
+	}
+	l->exprs[l->current_size++]=e;
+	return l;
+}
+
+int CheckConstAssign(Expr* r){
+	if(r->entry==NULL)return 0;
+	if(strcmp(r->entry->kind,"constant")==0){
+		printf("Error at Line#%d: constant %s cannot be assigned\n",linenum,r->entry->name);
+		return 1;
+	}
+	return 0;
+}
+
+int CheckType(Expr* LHS,Expr* RHS){
+	if(LHS==NULL || RHS==NULL) return 0;
+	if(strcmp( LHS->kind,"error")==0) return 0;
+	if(strcmp( PrintType(LHS->type,LHS->current_dimension), PrintType(RHS->type,RHS->current_dimension))!=0){
+		printf("Error at Line#%d: type mismatch, LHS= %s, RHS= %s\n",\
+				linenum,PrintType(LHS->type,LHS->current_dimension),PrintType(RHS->type,RHS->current_dimension));
+		return 1;
+	}
+	return 0;
+}
+
+int CheckFuncParaNum(Expr* e){
+	if(strcmp(e->kind,"function")!=0){
+		return 0;
+	}
+	if(strcmp(e->type->name,"void")==0 && e->para==NULL){
+		return 0;
+	}
+	else if(strcmp(e->type->name,"void")==0 && e->para!=NULL){
+		printf("Error at Line#%d: too many arguments to function '%s'\n",linenum,e->name);
+		return 1;
+	}
+	else if(strcmp(e->type->name,"void")!=0 && e->para==NULL){
+		printf("Error at Line#%d: too few arguments to function '%s'\n",linenum,e->name);
+		return 1;
+	}
+	else if(e->para->current_size > e->entry->attri->type_list->current_size){
+		printf("Error at Line#%d: too many arguments to function '%s'\n",linenum,e->name);
+		return 1;
+	}
+	else if(e->para->current_size < e->entry->attri->type_list->current_size){
+		printf("Error at Line#%d: too few arguments to function '%s'\n",linenum,e->name);
+		return 1;
+	}
+	return 0;
+}
+
+Expr* RelationalOp(Expr* LHS,Expr* RHS,char* rel_op){
+	if(strcmp(LHS->type->name,"string")==0 ||strcmp(RHS->type->name,"string")==0){
+		printf("Error at Line#%d: Side of %s is %s type\n",linenum,rel_op,PrintType(LHS->type,LHS->current_dimension));
+	}
+	Expr* e =(Expr*)malloc(sizeof(Expr));
+	strcpy(e->kind,"var");
+	e->current_dimension=0;
+	e->entry=NULL;
+	e->type=BuildType("boolean");
+	return e;
+}
+
+Expr* MulOp(Expr* LHS,Expr* RHS,char* mul_op){
+	Expr* e =(Expr*)malloc(sizeof(Expr));
+	e->current_dimension=0;
+	e->entry=NULL;
+	e->type=BuildType(LHS->type->name);
+	if(strcmp(LHS->type->name,"string")==0 ||strcmp(RHS->type->name,"string")==0){
+		printf("Error at Line#%d: between %s are %s type\n",linenum,mul_op,PrintType(LHS->type,LHS->current_dimension));
+		strcpy(e->kind,"err");
+	}
+	if(strcmp(mul_op,"mod")==0){
+		if(strcmp(LHS->type->name,"integer")!=0 ||strcmp(RHS->type->name,"integer")!=0){
+			printf("Error at Line#%d: between %s are not integer\n",linenum,mul_op);
+			strcpy(e->kind,"err");
+		}
+	}
+	strcpy(e->kind,"var");
+
+	return e;
+}
+int CheckFuncRet(Type* ft,Expr* e){
+
+	if(strcmp( PrintType(ft,0),PrintType(e->type,e->current_dimension))!=0){
+		printf("Error at Line#%d: return type mismatch\n",linenum);
+		printf("Error at Line#%d: type mismatch, should return %s, got %s \n",\
+				linenum,PrintType(ft,0),PrintType(e->type,e->current_dimension));
+		return 1;
+	}
+	return 0;
+}

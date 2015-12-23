@@ -45,29 +45,29 @@ identifier ({letter})({letter}|{digit})*
 
 %%
 
-","				{ tokenChar(','); return MK_COMMA; }
-";"				{ tokenChar(';'); return MK_SEMICOLON; }
-":"				{ tokenChar(':'); return MK_COLON; }
-")"				{ tokenChar(')'); return MK_RPAREN; }
-"("				{ tokenChar('('); return MK_LPAREN; }
-"["				{ tokenChar('['); return MK_LB;}
-"]"				{ tokenChar(']'); return MK_RB; }
+","				{ tokenChar(',');yylval.str=strdup(yytext); return MK_COMMA; }
+";"				{ tokenChar(';');yylval.str=strdup(yytext); return MK_SEMICOLON; }
+":"				{ tokenChar(':');yylval.str=strdup(yytext); return MK_COLON; }
+")"				{ tokenChar(')');yylval.str=strdup(yytext); return MK_RPAREN; }
+"("				{ tokenChar('(');yylval.str=strdup(yytext); return MK_LPAREN; }
+"["				{ tokenChar('[');yylval.str=strdup(yytext); return MK_LB;}
+"]"				{ tokenChar(']');yylval.str=strdup(yytext); return MK_RB; }
 
-"+"				{ tokenChar('+'); return OP_ADD; }
-"-"				{ tokenChar('-'); return OP_SUB; }
-"*"				{ tokenChar('*'); return OP_MUL; }
-"/"				{ tokenChar('/'); return OP_DIV; }
-"mod"				{ token(mod); return OP_MOD; }
-":="				{ token(:=); return OP_ASSIGN; }
-"<"				{ token(<); return OP_LT; }
-"<="				{ token(<=); return OP_LE; }
-"<>"				{ token(<>); return OP_NE; }
-">="				{ token(>=); return OP_GE; }
-">"				{ token(>); return OP_GT; }
-"="				{ token(=); return OP_EQ; }
-"and"				{ token(and); return OP_AND; }
-"or"				{ token(or); return OP_OR; }
-"not"				{ token(not); return OP_NOT; }
+"+"				{ tokenChar('+');yylval.str=strdup(yytext); return OP_ADD; }
+"-"				{ tokenChar('-');yylval.str=strdup(yytext); return OP_SUB; }
+"*"				{ tokenChar('*');yylval.str=strdup(yytext); return OP_MUL; }
+"/"				{ tokenChar('/');yylval.str=strdup(yytext); return OP_DIV; }
+"mod"				{ token(mod);yylval.str=strdup(yytext); return OP_MOD; }
+":="				{ token(:=);yylval.str=strdup(yytext); return OP_ASSIGN; }
+"<"				{ token(<);yylval.str=strdup(yytext); return OP_LT; }
+"<="				{ token(<=);yylval.str=strdup(yytext); return OP_LE; }
+"<>"				{ token(<>);yylval.str=strdup(yytext); return OP_NE; }
+">="				{ token(>=);yylval.str=strdup(yytext); return OP_GE; }
+">"				{ token(>);yylval.str=strdup(yytext); return OP_GT; }
+"="				{ token(=); yylval.str=strdup(yytext);return OP_EQ; }
+"and"				{ token(and);yylval.str=strdup(yytext); return OP_AND; }
+"or"				{ token(or);yylval.str=strdup(yytext); return OP_OR; }
+"not"				{ token(not);yylval.str=strdup(yytext); return OP_NOT; }
 
 "array"				{ token(KWarray); return ARRAY; }
 "begin"				{ token(KWbegin); return BEG; }
