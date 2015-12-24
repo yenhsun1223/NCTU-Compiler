@@ -370,8 +370,6 @@ Expr* FunctionCall(char* name,ExprList* l){
 			if(strcmp( PrintType(l->exprs[i]->type,l->exprs[i]->current_dimension),\
 						PrintType(e->entry->attri->type_list->types[i],0))!=0){
 				printf("Error at Line#%d: parameter type mismatch\n",linenum);
-				printf("Error at Line#%d: type mismatch, LHS= %s, RHS= \n",\
-				linenum,PrintType(e->entry->attri->type_list->types[i],0));
 				return e;
 			}
 		}
@@ -413,9 +411,11 @@ int CheckType(Expr* LHS,Expr* RHS){
 	if(LHS==NULL || RHS==NULL) return 0;
 	if(strcmp( LHS->kind,"error")==0) return 0;
 	if(strcmp( PrintType(LHS->type,LHS->current_dimension), PrintType(RHS->type,RHS->current_dimension))!=0){
-		printf("Error at Line#%d: type mismatch, LHS= %s, RHS= %s\n",\
-				linenum,PrintType(LHS->type,LHS->current_dimension),PrintType(RHS->type,RHS->current_dimension));
-		return 1;
+		if(!CanCoerce(LHS,RHS)){
+			printf("Error at Line#%d: type mismatch, LHS= %s, RHS= %s\n",\
+					linenum,PrintType(LHS->type,LHS->current_dimension),PrintType(RHS->type,RHS->current_dimension));
+			return 1;
+		}
 	}
 	return 0;
 }
@@ -457,33 +457,99 @@ Expr* RelationalOp(Expr* LHS,Expr* RHS,char* rel_op){
 	e->type=BuildType("boolean");
 	return e;
 }
-
-Expr* MulOp(Expr* LHS,Expr* RHS,char* mul_op){
+Expr* AddOp(Expr* LHS,Expr* RHS,char* op){
 	Expr* e =(Expr*)malloc(sizeof(Expr));
 	e->current_dimension=0;
 	e->entry=NULL;
-	e->type=BuildType(LHS->type->name);
-	if(strcmp(LHS->type->name,"string")==0 ||strcmp(RHS->type->name,"string")==0){
-		printf("Error at Line#%d: between %s are %s type\n",linenum,mul_op,PrintType(LHS->type,LHS->current_dimension));
-		strcpy(e->kind,"err");
+	strcpy(e->kind,"var");
+	//ok both is string
+	if(strcmp(PrintType(LHS->type,LHS->current_dimension),"string")==0\
+	&&strcmp(PrintType(RHS->type,RHS->current_dimension),"string")==0){
+		e->type=BuildType("string");
+		strcpy(e->kind,"var");
+		return e;
 	}
-	if(strcmp(mul_op,"mod")==0){
+
+	//error, one side not int/real
+	if(
+		(strcmp(PrintType(LHS->type,LHS->current_dimension),"integer")!=0 &&\
+		strcmp(PrintType(LHS->type,LHS->current_dimension),"real")!=0)\
+		||
+		(strcmp(PrintType(LHS->type,LHS->current_dimension),"integer")!=0 &&\
+		strcmp(PrintType(LHS->type,LHS->current_dimension),"real")!=0)
+	)
+	{
+		printf("Error at Line#%d: between %s are not integer/real\n",linenum,op);
+		strcpy(e->kind,"err");
+		e->type=BuildType(LHS->type->name);
+		return e;
+	}
+
+	//one of side is real
+	if(strcmp(PrintType(LHS->type,LHS->current_dimension),"real")==0\
+	||strcmp(PrintType(RHS->type,RHS->current_dimension),"real")==0){
+		e->type=BuildType("real");
+		return e;
+	}
+	free(e->type);
+	free(e);
+	return LHS;
+}
+
+Expr* MulOp(Expr* LHS,Expr* RHS,char* op){
+	Expr* e =(Expr*)malloc(sizeof(Expr));
+	e->current_dimension=0;
+	e->entry=NULL;
+	//error , mod without integr
+	if(strcmp(op,"mod")==0){
 		if(strcmp(LHS->type->name,"integer")!=0 ||strcmp(RHS->type->name,"integer")!=0){
-			printf("Error at Line#%d: between %s are not integer\n",linenum,mul_op);
+			printf("Error at Line#%d: between 'mod' are not integer\n",linenum);
 			strcpy(e->kind,"err");
+			e->type=BuildType(LHS->type->name);
+			return e;
 		}
 	}
-	strcpy(e->kind,"var");
+	//error, one side not int/real
+	if(
+		(strcmp(PrintType(LHS->type,LHS->current_dimension),"integer")!=0 &&\
+		strcmp(PrintType(LHS->type,LHS->current_dimension),"real")!=0)\
+		||
+		(strcmp(PrintType(LHS->type,LHS->current_dimension),"integer")!=0 &&\
+		strcmp(PrintType(LHS->type,LHS->current_dimension),"real")!=0)
+	)
+	{
+		printf("Error at Line#%d: between %s are not integer/real\n",linenum,op);
+		strcpy(e->kind,"err");
+		e->type=BuildType(LHS->type->name);
+		return e;
+	}
+	//one of side is real
+	if(strcmp(PrintType(LHS->type,LHS->current_dimension),"real")==0\
+	||strcmp(PrintType(RHS->type,RHS->current_dimension),"real")==0){
+		e->type=BuildType("real");
+		strcpy(e->kind,"err");
+		return e;
+	}
 
-	return e;
+	free(e->type);
+	free(e);
+	return LHS;
 }
 int CheckFuncRet(Type* ft,Expr* e){
 
 	if(strcmp( PrintType(ft,0),PrintType(e->type,e->current_dimension))!=0){
-		printf("Error at Line#%d: return type mismatch\n",linenum);
-		printf("Error at Line#%d: type mismatch, should return %s, got %s \n",\
-				linenum,PrintType(ft,0),PrintType(e->type,e->current_dimension));
+		printf("Error at Line#%d: return type mismatch, ",linenum);
+		printf("should return %s, got %s \n",PrintType(ft,0),PrintType(e->type,e->current_dimension));
 		return 1;
 	}
 	return 0;
 }
+
+int CanCoerce(Expr* LHS,Expr* RHS){
+	if(strcmp(PrintType(LHS->type,LHS->current_dimension),"real")==0 &&\
+		strcmp(PrintType(RHS->type,RHS->current_dimension),"integer")==0 ){
+		return 1;//can coerce
+	}
+	return 0;//can not coerce
+}
+

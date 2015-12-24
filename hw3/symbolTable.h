@@ -99,6 +99,7 @@ Expr* ConstExpr(Value*);
 Expr* FunctionCall(char*,ExprList*);
 Expr* RelationalOp(Expr*,Expr*,char*);
 Expr* MulOp(Expr*,Expr*,char*);
+Expr* AddOp(Expr*,Expr*,char*);
 
 ExprList* BuildExprList(ExprList*,Expr*);
 
@@ -121,4 +122,4 @@ int CheckConstAssign(Expr*);
 int CheckType(Expr*,Expr*);
 int CheckFuncParaNum(Expr*);
 int CheckFuncRet(Type*,Expr*);
-
+int CanCoerce(Expr*,Expr*);

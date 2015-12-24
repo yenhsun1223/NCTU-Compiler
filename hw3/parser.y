@@ -91,7 +91,7 @@ Type* return_buf;
 %token <str> MK_LB
 %token <str> MK_RB
 /* non-terminal */
-%type <str> rel_op mul_op
+%type <str> rel_op mul_op add_op
 %type <type> scalar_type type opt_type array_type
 %type <typelist> param_list opt_param_list param
 %type <value> literal_const int_const
@@ -179,7 +179,7 @@ func_decl		: ID
 				{
 					Attribute* func_attr=BuildFuncAttribute($4);
 					$$=BuildTableEntry($1,"function",symbol_table->current_level,$7,func_attr);
-
+					return_buf=NULL;
 				}
 			;
 
@@ -229,7 +229,7 @@ stmt			: compound_stmt
 			| cond_stmt
 			| while_stmt
 			| for_stmt
-			| return_stmt {CheckFuncRet(return_buf,$1); return_buf=NULL;}
+			| return_stmt {CheckFuncRet(return_buf,$1); }
 			| proc_call_stmt
 			;
 
@@ -323,7 +323,7 @@ rel_op			: OP_LT
 			| OP_NE
 			;
 
-expr			: expr add_op term {$$=$3;}
+expr			: expr add_op term {$$=AddOp($1,$3,$2);}
 			| term
 			;
 
