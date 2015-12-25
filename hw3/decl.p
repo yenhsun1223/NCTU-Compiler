@@ -1,26 +1,32 @@
-//&S-;
 //&T-;
 test;
 
-// no global declaration(s)
-
-func( a:integer;b:array 1 to 5 of array 2 to 4 of array 5 to 10 of real ): boolean;
 begin
-    var c: "hello world!";
-    var z:6;
-    var j:6.8;
-    var o:false;
-    begin
-        var d: real;
-        return (b[1][4] >= 1.0);
-    end
-end
-end func
 
-begin
-    var a: real;
+    var a: integer;
+    var c:boolean;
+    var zj:array 1 to 5 of real;
+    print zj[1];
+    c:=func(a);
     begin
         var a: boolean; // outer 'a' has been hidden in this scope
+    return a;
+    for i := 30 to 5 do
+        begin
+            print i;
+            begin
+                for i := 30 to 5 do
+                    begin
+                        print i;
+                        begin
+                            i:=5;
+                        end
+                    end
+                end do
+                i:=5;
+            end
+        end
+    end do
     end
 end
-end test1
+end test12

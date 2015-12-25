@@ -22,6 +22,7 @@ TableEntry* entry_buf;
 IdList* idlist_buf;
 Type* return_buf;
 int has_ret=0;
+int loop_cnt =0;
 
 %}
 /* types */
@@ -301,9 +302,10 @@ while_stmt		: WHILE boolean_expr DO
 
 for_stmt		: FOR ID OP_ASSIGN int_const TO int_const DO
 				{
-					TableEntry* tmp=BuildTableEntry($2,"varible",symbol_table->current_level,BuildType("integer"),NULL);
+					TableEntry* tmp=BuildTableEntry($2,"loop varible",symbol_table->current_level,BuildType("integer"),NULL);
+					loop_cnt++;
 					InsertTableEntry(symbol_table,tmp);
-					if($4-$6<0){
+					if($6-$4<0){
 						printf("Error at Line#%d: loop parameter's lower bound >= uppper bound\n",linenum);
 					}
 				}

@@ -67,8 +67,8 @@ TableEntry* BuildTableEntry(char* name,const char* kind,int level,Type* type,Att
 
 void InsertTableEntry(SymbolTable* t,TableEntry* e){
 	if(strcmp(PrintType(e->type,0),"null")==0)return ;
-	if(FindEntryInScope(t,e->name)!=NULL){
-		printf("Error at Line#%d: symbol %s is redeclared\n",linenum,e->name);
+	if(FindEntryInScope(t,e->name)!=NULL ||FindEntryLoopVar(t,e->name)!=NULL){
+		printf("Error at Line#%d: %s '%s' is redeclared\n",linenum,e->kind,e->name);
 		return;
 	}
 	//grow the capacity
@@ -338,11 +338,22 @@ TableEntry* FindEntryInGlobal(SymbolTable* tbl,char* name){
 	}
 	return NULL;
 }
+TableEntry* FindEntryLoopVar(SymbolTable* tbl,char* name){
+	int i;
+	for(i=0;i<tbl->pos;i++){
+		TableEntry* it=tbl->Entries[i];
+		if(strcmp(name,it->name)==0 && strcmp(it->kind,"loop varible")==0){
+			return it;
+		}
+	}
+	return NULL;
+}
 
 Expr* FindVarRef(SymbolTable* tbl,char* name){
 	Expr* e =(Expr*)malloc(sizeof(Expr));
 	TableEntry* tmp=FindEntryInScope(tbl,name);
 	if(tmp==NULL)tmp=FindEntryInGlobal(tbl,name);
+	if(tmp==NULL)tmp=FindEntryLoopVar(tbl,name);
 	if(tmp==NULL){
 		strcpy(e->kind,"err");
 		strcpy(e->name,name);
@@ -376,10 +387,13 @@ Expr* FunctionCall(char* name,ExprList* l){
 	strcpy(e->name,name);
 	e->current_dimension=0;
 	e->entry=FindEntryInGlobal(symbol_table,name);
-	e->type=e->entry->type;
-	if(e==NULL){
+	if(e->entry==NULL){
 		printf("Error at Line#%d: function %s is not declared\n",linenum,name);
-		return NULL;
+		strcpy(e->kind,"err");
+		e->para=NULL;
+		return e;
+	}else{
+		e->type=e->entry->type;
 	}
 	if(l==NULL){
 		e->para=NULL;
@@ -436,6 +450,10 @@ int CheckConstAssign(Expr* r){
 	if(r->entry==NULL)return 0;
 	if(strcmp(r->entry->kind,"constant")==0){
 		printf("Error at Line#%d: constant %s cannot be assigned\n",linenum,r->entry->name);
+		return 1;
+	}
+	else if(strcmp(r->entry->kind,"loop varible")==0){
+		printf("Error at Line#%d: loop varible '%s' cannot be assigned\n",linenum,r->entry->name);
 		return 1;
 	}
 	return 0;

@@ -1,6 +1,7 @@
 extern char *yytext;		/* declared by lex */
 extern int linenum;		/* declared in lex.l */
 extern int Opt_D;		/* declared in lex.l */
+extern int loop_cnt;
 
 typedef struct ArraySig ArraySig;
 typedef struct Type Type;
@@ -108,6 +109,7 @@ ExprList* BuildExprList(ExprList*,Expr*);
 
 TableEntry* FindEntryInScope(SymbolTable*,char*);
 TableEntry* FindEntryInGlobal(SymbolTable*,char*);
+TableEntry* FindEntryLoopVar(SymbolTable*,char*);
 
 IdList* BuildIdList();
 void ResetIdList(IdList*);
