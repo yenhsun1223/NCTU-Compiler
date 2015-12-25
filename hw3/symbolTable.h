@@ -2,6 +2,7 @@ extern char *yytext;		/* declared by lex */
 extern int linenum;		/* declared in lex.l */
 extern int Opt_D;		/* declared in lex.l */
 extern int loop_cnt;
+extern char* fn;
 
 typedef struct ArraySig ArraySig;
 typedef struct Type Type;
@@ -129,5 +130,5 @@ int CheckType(Expr*,Expr*);
 int CheckFuncParaNum(Expr*);
 int CheckFuncRet(Type*,Expr*);
 int CanCoerce(Expr*,Expr*);
-int CheckName(char*,char*);
 int CheckSimple(Expr*);
+int CheckFilename(char*,char*);

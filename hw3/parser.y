@@ -106,7 +106,7 @@ int loop_cnt =0;
 %start program
 %%
 
-program			: ID MK_SEMICOLON
+program			: ID MK_SEMICOLON {CheckFilename(fn,$1);}
 				program_body
 				{
 					if(has_ret){

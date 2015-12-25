@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <regex.h>
 #include "symbolTable.h"
 
 SymbolTable* BuildSymbolTable(){
@@ -690,6 +691,20 @@ int CheckSimple(Expr* in){
 			){
 		printf("Error at Line#%d: print/read statement's operand must be scalar type\n",linenum);
 		return 1;
+	}
+	return 0;
+}
+int CheckFilename(char* fn,char* proname){
+	int len=strlen(fn);
+	fn[len-2]='\0';
+	char* p=strstr(fn,"/");
+	if(p!=NULL){
+		p++;
+	}else{
+		p=fn;
+	}
+	if(strcmp(p,proname)!=0){
+		printf("Error at Line#%d: program beginning ID inconsist with file name\n",linenum);
 	}
 	return 0;
 }
