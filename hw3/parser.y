@@ -160,15 +160,15 @@ decl			: VAR id_list MK_COLON scalar_type MK_SEMICOLON  /* scalar type declarati
 
 			;
 int_const	:	INT_CONST		{$$=BuildValue("integer",yytext);}
-			|	OCTAL_CONST 	{$$=BuildValue("octal",yytext);}
+			|	OCTAL_CONST 	{$$=BuildValue("integer",yytext);}
 			;
 /*FIXME*/
 literal_const		: int_const {$$=$1;}
-			| OP_SUB int_const  {$$=$2;}
+			| OP_SUB int_const  {$$=SubOp($2);}
 			| FLOAT_CONST 		{$$=BuildValue("real",yytext);}
-			| OP_SUB FLOAT_CONST {$$=BuildValue("real",yytext);}
-			| SCIENTIFIC		{$$=BuildValue("scientific",yytext);}
-			| OP_SUB SCIENTIFIC {$$=BuildValue("scientific",yytext);}
+			| OP_SUB FLOAT_CONST {$$=SubOp(BuildValue("real",yytext));}
+			| SCIENTIFIC		{$$=BuildValue("real",yytext);}
+			| OP_SUB SCIENTIFIC {$$=SubOp(BuildValue("real",yytext));}
 			| STR_CONST 		{$$=BuildValue("string",yytext);}
 			| TRUE 				{$$=BuildValue("boolean",yytext);}
 			| FALSE				{$$=BuildValue("boolean",yytext);}

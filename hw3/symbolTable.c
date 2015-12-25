@@ -188,7 +188,11 @@ void PrintAttribute(Attribute* a){
 		else if(strcmp(a->val->type->name,"integer")==0)
 			printf("%-11d\t",a->val->ival);
 		else if(strcmp(a->val->type->name,"real")==0)
-			printf("%-11f\t",a->val->dval);
+			if(strstr(a->val->sval,"e") ||strstr(a->val->sval,"E")){
+				printf("%-11s\t",a->val->sval);
+			}else{
+				printf("%-11f\t",a->val->dval);
+			}
 		else if(strcmp(a->val->type->name,"boolean")==0)
 			printf("%-11s\t",a->val->sval);
 	}else if(a->type_list!=NULL){
@@ -288,8 +292,11 @@ Value* BuildValue(const char* typename,const char* val){
 	Type* t=BuildType(typename);
 	Value* v=(Value*) malloc(sizeof(Value));
 	v->type=t;
+	v->sval=NULL;
+	v->ival=0;
 	if(strcmp(t->name,"real")==0 ){
 		v->dval=atof(val);
+		v->sval=strdup(val);
 	}else if(strcmp(t->name,"string")==0){
 		v->sval=strdup(val);
 	}else if(strcmp(t->name,"integer")==0){
@@ -300,6 +307,24 @@ Value* BuildValue(const char* typename,const char* val){
 		v->sval=strdup(val);
 	}else if(strcmp(t->name,"boolean")==0){
 		v->sval=strdup(val);
+	}
+	return v;
+}
+Value* SubOp(Value* v){
+	if(v==NULL)return NULL;
+	Type* t=v->type;
+	if(strcmp(t->name,"real")==0 ){
+		if(strstr(v->sval,"E") ||strstr(v->sval,"e")){
+			char* tmp=v->sval;
+			v->sval=(char*)malloc(strlen(v->sval)+2);
+			v->sval[0]='-';
+			strcat(v->sval,tmp);
+			free(tmp);
+		}else{
+			v->dval*=-1.0;
+		}
+	}else if(strcmp(t->name,"integer")==0){
+		v->ival*=-1;
 	}
 	return v;
 }

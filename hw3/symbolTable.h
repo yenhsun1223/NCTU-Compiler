@@ -122,6 +122,7 @@ TypeList* AddTypeToList(TypeList*,Type*,int);
 TypeList* ExtendTypelist(TypeList*,TypeList*);
 
 Value* BuildValue(const char*,const char*);
+Value* SubOp(Value*);
 
 int CheckConstAssign(Expr*);
 int CheckType(Expr*,Expr*);

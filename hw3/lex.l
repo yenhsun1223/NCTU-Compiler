@@ -93,11 +93,11 @@ identifier ({letter})({letter}|{digit})*
 "var"				{ token(KWvar); return VAR; }
 "while"				{ token(KWwhile); return WHILE; }
 
-{octal}				{ tokenOctInteger("oct_integer",yytext);return OCTAL_CONST;}
+{octal}				{ tokenOctInteger("integer",yytext); yylval.num=strtol(yytext,'\0',8);return OCTAL_CONST;}
 {identifier}			{ tokenString("id",yytext); yylval.str=strdup(yytext); return ID; }
 {integer}			{ tokenInteger("integer",atoi(yytext)); yylval.num=atoi(yytext); return INT_CONST; }
 {float}				{ tokenFloat("float",yytext); yylval.dnum=atof(yytext); return FLOAT_CONST; }
-{scientific}			{ tokenScientific("scientific", yytext); return SCIENTIFIC; }
+{scientific}			{ tokenScientific("scientific", yytext); yylval.str=strdup(yytext); return SCIENTIFIC; }
 
 \"((\"\")|[^\"\n])*\"	{
 				LIST;
