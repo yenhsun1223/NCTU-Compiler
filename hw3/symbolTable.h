@@ -1,5 +1,6 @@
 extern char *yytext;		/* declared by lex */
 extern int linenum;		/* declared in lex.l */
+extern int Opt_D;		/* declared in lex.l */
 
 typedef struct ArraySig ArraySig;
 typedef struct Type Type;
@@ -82,6 +83,7 @@ SymbolTable* BuildSymbolTable();
 void InsertTableEntry(SymbolTable*,TableEntry*);
 void InsertTableEntryFromList(SymbolTable*,IdList*,const char*,Type*,Attribute*);
 void PopTableEntry(SymbolTable*);
+void PopTableEntryByName(SymbolTable*,char*);
 TableEntry* BuildTableEntry(char*,const char*,int,Type*,Attribute*);
 
 void PrintSymbolTable(SymbolTable*);
@@ -100,6 +102,7 @@ Expr* FunctionCall(char*,ExprList*);
 Expr* RelationalOp(Expr*,Expr*,char*);
 Expr* MulOp(Expr*,Expr*,char*);
 Expr* AddOp(Expr*,Expr*,char*);
+Expr* BooleanOp(Expr*,Expr*,char*);
 
 ExprList* BuildExprList(ExprList*,Expr*);
 
@@ -123,3 +126,5 @@ int CheckType(Expr*,Expr*);
 int CheckFuncParaNum(Expr*);
 int CheckFuncRet(Type*,Expr*);
 int CanCoerce(Expr*,Expr*);
+int CheckName(char*,char*);
+int CheckSimple(Expr*);

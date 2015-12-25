@@ -21,6 +21,7 @@ SymbolTable* symbol_table;
 TableEntry* entry_buf;
 IdList* idlist_buf;
 Type* return_buf;
+int has_ret=0;
 
 %}
 /* types */
@@ -106,10 +107,18 @@ Type* return_buf;
 
 program			: ID MK_SEMICOLON
 				program_body
+				{
+					if(has_ret){
+						printf("Error at Line#%d: Program can not be returned\n",linenum);
+					}
+				}
 				END ID
 				{
 					TableEntry* tmp=BuildTableEntry($1,"program",symbol_table->current_level,BuildType("void"),NULL);
 					InsertTableEntry(symbol_table,tmp);
+					if(strcmp($1,$6)!=0){
+						printf("Error at Line#%d: Program end ID inconsist with the beginning ID\n",linenum);
+					}
 					PrintSymbolTable(symbol_table);
 				}
 			;
@@ -133,8 +142,13 @@ decl			: VAR id_list MK_COLON scalar_type MK_SEMICOLON  /* scalar type declarati
 
 			| VAR id_list MK_COLON array_type MK_SEMICOLON       /* array type declaration */
 			{
-				InsertTableEntryFromList(symbol_table,idlist_buf,"varible",$4,NULL);
-				ResetIdList(idlist_buf);
+				if(strcmp(PrintType($4,0),"dim_err")==0){
+					printf("Error at Line#%d: wrong dimension declaration for array ",linenum);
+					PrintIdList(idlist_buf);
+				}else{
+					InsertTableEntryFromList(symbol_table,idlist_buf,"varible",$4,NULL);
+					ResetIdList(idlist_buf);
+				}
 			}
 			| VAR id_list MK_COLON literal_const MK_SEMICOLON     /* const declaration */
 			{
@@ -180,6 +194,10 @@ func_decl		: ID
 					Attribute* func_attr=BuildFuncAttribute($4);
 					$$=BuildTableEntry($1,"function",symbol_table->current_level,$7,func_attr);
 					return_buf=NULL;
+					has_ret=0;
+					if(strcmp($1,$12)!=0){
+						printf("Error at Line#%d: Function end ID inconsist with the beginning ID\n",linenum);
+					}
 				}
 			;
 
@@ -229,7 +247,7 @@ stmt			: compound_stmt
 			| cond_stmt
 			| while_stmt
 			| for_stmt
-			| return_stmt {CheckFuncRet(return_buf,$1); }
+			| return_stmt {CheckFuncRet(return_buf,$1);has_ret=1; }
 			| proc_call_stmt
 			;
 
@@ -260,8 +278,9 @@ simple_stmt		: var_ref OP_ASSIGN boolean_expr MK_SEMICOLON
 					CheckType($1,$3);
 				}
 			 }
-			| PRINT boolean_expr MK_SEMICOLON
-			| READ boolean_expr MK_SEMICOLON
+			| PRINT boolean_expr MK_SEMICOLON	{CheckSimple($2);}
+			| READ boolean_expr MK_SEMICOLON	{CheckSimple($2);}
+
 			;
 
 proc_call_stmt		: ID MK_LPAREN opt_boolean_expr_list MK_RPAREN MK_SEMICOLON
@@ -281,8 +300,18 @@ while_stmt		: WHILE boolean_expr DO
 			;
 
 for_stmt		: FOR ID OP_ASSIGN int_const TO int_const DO
+				{
+					TableEntry* tmp=BuildTableEntry($2,"varible",symbol_table->current_level,BuildType("integer"),NULL);
+					InsertTableEntry(symbol_table,tmp);
+					if($4-$6<0){
+						printf("Error at Line#%d: loop parameter's lower bound >= uppper bound\n",linenum);
+					}
+				}
 			  opt_stmt_list
 			  END DO
+			  {
+				PopTableEntryByName(symbol_table,$2);
+			  }
 			;
 
 return_stmt		: RETURN boolean_expr MK_SEMICOLON{$$=$2;}
@@ -296,15 +325,15 @@ boolean_expr_list	: boolean_expr_list MK_COMMA boolean_expr {$$=BuildExprList($1
 			| boolean_expr {$$=BuildExprList(NULL,$1);}
 			;
 
-boolean_expr		: boolean_expr OP_OR boolean_term {$$=$3;}
+boolean_expr		: boolean_expr OP_OR boolean_term {$$=BooleanOp($1,$3,$2);}
 			| boolean_term
 			;
 
-boolean_term		: boolean_term OP_AND boolean_factor {$$=$3;}
+boolean_term		: boolean_term OP_AND boolean_factor {$$=BooleanOp($1,$3,$2);}
 			| boolean_factor
 			;
 
-boolean_factor		: OP_NOT boolean_factor {$$=$2;}
+boolean_factor		: OP_NOT boolean_factor {$$=BooleanOp($2,$2,$1);}
 			| relop_expr
 			;
 
