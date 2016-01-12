@@ -117,10 +117,10 @@ program			: ID MK_SEMICOLON {CheckFilename(fn,$1);}
 				{
 					TableEntry* tmp=BuildTableEntry($1,"program",symbol_table->current_level,BuildType("void"),NULL);
 					InsertTableEntry(symbol_table,tmp);
-					if(strcmp($1,$6)!=0){
-						printf("Error at Line#%d: Program end ID inconsist with the beginning ID\n",linenum);
-					}
 					PrintSymbolTable(symbol_table);
+					if(strcmp($1,$7)!=0){
+						printf("Error at Line#%d: Program end ID '%s' inconsist with the beginning ID '%s'\n",linenum,$7,$1);
+					}
 				}
 			;
 

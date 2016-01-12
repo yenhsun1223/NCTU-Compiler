@@ -43,7 +43,7 @@ struct Attribute{
 };
 
 struct Type{
-	char name[16];
+	char name[32];
 	ArraySig* array_signature;
 };
 

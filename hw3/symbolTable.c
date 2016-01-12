@@ -472,8 +472,8 @@ ExprList* BuildExprList(ExprList* l,Expr* e){
 }
 
 int CheckConstAssign(Expr* r){
+	if(r==NULL||r->entry==NULL)return 0;
 	if(strcmp(r->kind,"err")==0) return 0;
-	if(r->entry==NULL)return 0;
 	if(strcmp(r->entry->kind,"constant")==0){
 		printf("Error at Line#%d: constant %s cannot be assigned\n",linenum,r->entry->name);
 		return 1;
@@ -486,8 +486,8 @@ int CheckConstAssign(Expr* r){
 }
 
 int CheckType(Expr* LHS,Expr* RHS){
-	if(strcmp(LHS->kind,"err")==0 ||strcmp(RHS->kind,"err")==0) return 0;
 	if(LHS==NULL || RHS==NULL) return 0;
+	if(strcmp(LHS->kind,"err")==0 ||strcmp(RHS->kind,"err")==0) return 0;
 	if(strcmp( LHS->kind,"error")==0) return 0;
 	if(strcmp( PrintType(LHS->type,LHS->current_dimension), PrintType(RHS->type,RHS->current_dimension))!=0){
 		if(!CanCoerce(LHS,RHS)){
@@ -500,6 +500,7 @@ int CheckType(Expr* LHS,Expr* RHS){
 }
 
 int CheckFuncParaNum(Expr* e){
+	if(e==NULL )return 0;
 	if(strcmp(e->kind,"err")==0) return 0;
 
 	if(strcmp(e->kind,"function")!=0){
@@ -528,6 +529,7 @@ int CheckFuncParaNum(Expr* e){
 }
 
 Expr* RelationalOp(Expr* LHS,Expr* RHS,char* op){
+	if(LHS==NULL ||RHS==NULL)return NULL;
 	Expr* e =(Expr*)malloc(sizeof(Expr));
 	strcpy(e->kind,"var");
 	e->current_dimension=0;
@@ -561,6 +563,7 @@ Expr* RelationalOp(Expr* LHS,Expr* RHS,char* op){
 	return e;
 }
 Expr* AddOp(Expr* LHS,Expr* RHS,char* op){
+	if(LHS==NULL ||RHS==NULL)return NULL;
 	if(strcmp(LHS->kind,"err")==0 ||strcmp(RHS->kind,"err")==0) return 0;
 	Expr* e =(Expr*)malloc(sizeof(Expr));
 	e->current_dimension=0;
@@ -600,7 +603,8 @@ Expr* AddOp(Expr* LHS,Expr* RHS,char* op){
 	return LHS;
 }
 Expr* BooleanOp(Expr* LHS,Expr* RHS,char* op){
-	if(strcmp(LHS->kind,"err")==0 ||strcmp(RHS->kind,"err")==0) return 0;
+	if(LHS==NULL ||RHS==NULL)return NULL;
+	if(strcmp(LHS->kind,"err")==0 ||strcmp(RHS->kind,"err")==0) return NULL;
 	Expr* e =(Expr*)malloc(sizeof(Expr));
 	e->current_dimension=0;
 	e->entry=NULL;
@@ -623,7 +627,8 @@ Expr* BooleanOp(Expr* LHS,Expr* RHS,char* op){
 }
 
 Expr* MulOp(Expr* LHS,Expr* RHS,char* op){
-	if(strcmp(LHS->kind,"err")==0 ||strcmp(RHS->kind,"err")==0) return 0;
+	if(LHS==NULL ||RHS==NULL)return NULL;
+	if(strcmp(LHS->kind,"err")==0 ||strcmp(RHS->kind,"err")==0) return NULL;
 	Expr* e =(Expr*)malloc(sizeof(Expr));
 	e->current_dimension=0;
 	e->entry=NULL;
@@ -664,7 +669,7 @@ Expr* MulOp(Expr* LHS,Expr* RHS,char* op){
 	return LHS;
 }
 int CheckFuncRet(Type* ft,Expr* e){
-	if(ft==NULL)return 0;
+	if(ft==NULL ||e==NULL)return 0;
 	if(strcmp(e->kind,"err")==0) return 0;
 
 	if(strcmp( PrintType(ft,0),PrintType(e->type,e->current_dimension))!=0){
@@ -676,6 +681,7 @@ int CheckFuncRet(Type* ft,Expr* e){
 }
 
 int CanCoerce(Expr* LHS,Expr* RHS){
+	if(LHS==NULL ||RHS==NULL)return 0;
 	if(strcmp(PrintType(LHS->type,LHS->current_dimension),"real")==0 &&\
 		strcmp(PrintType(RHS->type,RHS->current_dimension),"integer")==0 ){
 		return 1;//can coerce
@@ -684,6 +690,7 @@ int CanCoerce(Expr* LHS,Expr* RHS){
 }
 
 int CheckSimple(Expr* in){
+	if(in==NULL)return 0;
 	if(strcmp(PrintType(in->type,in->current_dimension),"integer")!=0 &&
 		strcmp(PrintType(in->type,in->current_dimension),"real")!=0 &&
 		strcmp(PrintType(in->type,in->current_dimension),"boolean")!=0 &&

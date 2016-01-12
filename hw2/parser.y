@@ -13,14 +13,14 @@ extern char buf[256];           /* declared in lex.l */
 %token WHILE DO FOR RETURN
 %token IDENT TYPE MOD LE GE NE NOT AND OR IF THEN ELSE INT FLOAT SCI OCTAL TRUE FALSE STRING
 
-%precedence PARENTHESES
-%precedence NEG
+%left PARENTHESES
+%left NEG
 %left '*' '/'
 %left '+' '-'
 %left '>' '<'
-%precedence NOT
-%precedence AND
-%precedence OR
+%left NOT
+%left AND
+%left OR
 
 
 %%

@@ -94,7 +94,18 @@ identifier ({letter})({letter}|{digit})*
 "while"				{ token(KWwhile); return WHILE; }
 
 {octal}				{ tokenOctInteger("integer",yytext); yylval.num=strtol(yytext,'\0',8);return OCTAL_CONST;}
-{identifier}			{ tokenString("id",yytext); yylval.str=strdup(yytext); return ID; }
+{identifier}			{
+	char* tmp;
+	if(strlen(yytext)>32){
+		tmp=(char*)malloc(64);
+		strncpy(tmp,yytext,32);
+		tmp[33]='\0';
+	}else{
+		tmp=strdup(yytext);
+	}
+	tokenString("id",tmp);
+	yylval.str=tmp;
+	return ID; }
 {integer}			{ tokenInteger("integer",atoi(yytext)); yylval.num=atoi(yytext); return INT_CONST; }
 {float}				{ tokenFloat("float",yytext); yylval.dnum=atof(yytext); return FLOAT_CONST; }
 {scientific}			{ tokenScientific("scientific", yytext); yylval.str=strdup(yytext); return SCIENTIFIC; }
