@@ -29,13 +29,14 @@ int hasRead=0;
 
 int Opt_D = 1;			/* symbol table dump option */
 char fileName[256];
-
+struct insList insList;
 
 struct SymTable *symbolTable;	// main symbol table
 
 __BOOLEAN paramError;			// indicate is parameter have any error?
 
 struct PType *funcReturn;		// record function's return type, used at 'return statement' production rule
+
 
 %}
 
@@ -343,7 +344,8 @@ simple_stmt		: var_ref OP_ASSIGN boolean_expr MK_SEMICOLON
 			  // if both LHS and RHS are exists, verify their type
 			  if( flagLHS==__TRUE && flagRHS==__TRUE )
 				verifyAssignmentTypeMatch( $1, $3 );
-				GenAssign($1);
+				GenExprIns();
+				GenSaveExpr($1);
 			}
 			| PRINT  {GenPrintStart();}
 			boolean_expr MK_SEMICOLON { verifyScalarExpr( $3, "print" );GenPrint($3); }
@@ -461,6 +463,7 @@ rel_op			: OP_LT { $$ = LT_t; }
 expr			: expr add_op term
 			{
 			  verifyArithmeticOp( $1, $2, $3 );
+				GenArithmetic($1,$2,$3);
 			  $$ = $1;
 			}
 			| term { $$ = $1; }
@@ -478,9 +481,10 @@ term			: term mul_op factor
 			  else {
 				verifyArithmeticOp( $1, $2, $3 );
 			  }
+				GenArithmetic($1,$2,$3);
 			  $$ = $1;
 			}
-			| factor { $$ = $1; }
+			| factor { $$ = $1;  GenLoadExpr($1);}
 			;
 
 mul_op			: OP_MUL { $$ = MUL_t; }
@@ -496,8 +500,9 @@ factor			: var_ref
 			}
 			| OP_SUB var_ref
 			{
-			  if( verifyExistence( symbolTable, $2, scope, __FALSE ) == __TRUE )
+			   verifyExistence( symbolTable, $2, scope, __FALSE );
 				verifyUnaryMinus( $2 );
+				GenArithmetic($2,SUB_t,0);
 			  $$ = $2;
 			  $$->beginningOp = SUB_t;
 			}
@@ -509,6 +514,7 @@ factor			: var_ref
 			| OP_SUB MK_LPAREN boolean_expr MK_RPAREN
 			{
 			  verifyUnaryMinus( $3 );
+				GenArithmetic($3,SUB_t,0);
 			  $$ = $3;
 			  $$->beginningOp = SUB_t;
 			}

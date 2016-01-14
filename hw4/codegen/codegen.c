@@ -7,6 +7,26 @@
 #include "symtab.h"
 #include"codegen.h"
 
+void pushIns(char* ins){
+	insList.list[insList.size++]=strdup(ins);
+}
+void GenExprIns(){
+	int i;
+	for(i=0;i<insList.size;i++){
+		printf("%s\n",insList.list[i]);
+		fprintf(outfp, "%s",insList.list[i]);
+		free(insList.list[i]);
+	}
+	insList.size=0;
+}
+
+void ClearExprIns(){
+	int i;
+	for(i=0;i<insList.size;i++){
+		free(insList.list[i]);
+	}
+	insList.size=0;
+}
 
 void GenProgramStart(char* pname){
 	fprintf(outfp, "; %s\n",pname);
@@ -39,100 +59,94 @@ void GenGlobalVar(char* pname,struct PType* type){
 }
 
 void GenLoadExpr(struct expr_sem* expr){
+	if(!expr) return;
 	if(expr->varRef){
 		struct SymNode* lookup= lookupSymbol(symbolTable,expr->varRef->id,scope,__FALSE);
 		if(lookup){
 			if(lookup->category==CONSTANT_t){
 				switch(expr->pType->type){
 					case INTEGER_t:
-						fprintf(outfp, "sipush %d\n",lookup->attribute->constVal->value.integerVal);
+						snprintf(insBuf,sizeof(insBuf), "sipush %d\n",lookup->attribute->constVal->value.integerVal);
 						break;
 					case REAL_t:
-						fprintf(outfp, "ldc %lf\n",lookup->attribute->constVal->value.realVal);
+						snprintf(insBuf,sizeof(insBuf), "ldc %lf\n",lookup->attribute->constVal->value.realVal);
 						break;
 					case BOOLEAN_t:
-						fprintf(outfp, "iconst_%d\n",lookup->attribute->constVal->value.booleanVal);
+						snprintf(insBuf,sizeof(insBuf), "iconst_%d\n",lookup->attribute->constVal->value.booleanVal);
 						break;
 				}
 			}
 			else if(lookup->category==VARIABLE_t && lookup->scope!=0){
 				switch(expr->pType->type){
 					case INTEGER_t:
-						fprintf(outfp, "iload_%d\n",lookup->attribute->var_no);
+						snprintf(insBuf,sizeof(insBuf), "iload_%d\n",lookup->attribute->var_no);
 						break;
 					case REAL_t:
-						fprintf(outfp, "fload_%d\n",lookup->attribute->var_no);
+						snprintf(insBuf,sizeof(insBuf), "fload_%d\n",lookup->attribute->var_no);
 						break;
 					case BOOLEAN_t:
-						fprintf(outfp, "iload_%d\n",lookup->attribute->var_no);
+						snprintf(insBuf,sizeof(insBuf), "iload_%d\n",lookup->attribute->var_no);
 						break;
 				}
 			}
 			else if(lookup->category==VARIABLE_t && lookup->scope==0){
 				switch(expr->pType->type){
 					case INTEGER_t:
-						fprintf(outfp, "getstatic %s/%s I\n",fileName,lookup->name);
+						snprintf(insBuf,sizeof(insBuf), "getstatic %s/%s I\n",fileName,lookup->name);
 						break;
 					case REAL_t:
-						fprintf(outfp, "getstatic %s/%s F\n",fileName,lookup->name);
+						snprintf(insBuf,sizeof(insBuf), "getstatic %s/%s F\n",fileName,lookup->name);
 						break;
 					case BOOLEAN_t:
-						fprintf(outfp, "getstatic %s/%s Z\n",fileName,lookup->name);
+						snprintf(insBuf,sizeof(insBuf), "getstatic %s/%s Z\n",fileName,lookup->name);
+						break;
+				}
+			}
+			pushIns(insBuf);
+			memset(insBuf,0,sizeof(insBuf));
+		}
+	}
+}
+void GenSaveExpr(struct expr_sem* expr){
+	if(expr->varRef){
+		struct SymNode* lookup= lookupSymbol(symbolTable,expr->varRef->id,scope,__FALSE);
+		if(lookup){
+			if(lookup->category==VARIABLE_t && lookup->scope!=0){ //varible but not global
+				switch(expr->pType->type){
+					case INTEGER_t:
+						fprintf(outfp, "istore %d\n",lookup->attribute->var_no);
+						break;
+					case REAL_t:
+						fprintf(outfp, "fstore %d\n",lookup->attribute->var_no);
+						break;
+					case BOOLEAN_t:
+						fprintf(outfp, "istore %d\n",lookup->attribute->var_no);
+						break;
+				}
+			}
+			else if(lookup->category==VARIABLE_t && lookup->scope==0){
+				switch(expr->pType->type){
+					case INTEGER_t:
+						fprintf(outfp, "putstatic %s/%s I",fileName,lookup->name);
+						break;
+					case REAL_t:
+						fprintf(outfp, "putstatic %s/%s F",fileName,lookup->name);
+						break;
+					case BOOLEAN_t:
+						fprintf(outfp, "putstatic %s/%s Z",fileName,lookup->name);
 						break;
 				}
 			}
 		}
 	}
+	fprintf(outfp, "\n");
 }
 
 void GenPrintStart(){
 	fprintf(outfp, "getstatic java/lang/System/out Ljava/io/PrintStream;\n");
 }
 void GenPrint(struct expr_sem* expr){
-	if(expr->varRef){
-		struct SymNode* lookup= lookupSymbol(symbolTable,expr->varRef->id,scope,__FALSE);
-		if(lookup){
-			if(lookup->category==CONSTANT_t){
-				switch(expr->pType->type){
-					case INTEGER_t:
-						fprintf(outfp, "sipush %d\n",lookup->attribute->constVal->value.integerVal);
-						break;
-					case REAL_t:
-						fprintf(outfp, "ldc %lf\n",lookup->attribute->constVal->value.realVal);
-						break;
-					case BOOLEAN_t:
-						fprintf(outfp, "iconst_%d\n",lookup->attribute->constVal->value.booleanVal);
-						break;
-				}
-			}
-			else if(lookup->category==VARIABLE_t && lookup->scope!=0){
-				switch(expr->pType->type){
-					case INTEGER_t:
-						fprintf(outfp, "iload_%d\n",lookup->attribute->var_no);
-						break;
-					case REAL_t:
-						fprintf(outfp, "fload_%d\n",lookup->attribute->var_no);
-						break;
-					case BOOLEAN_t:
-						fprintf(outfp, "iload_%d\n",lookup->attribute->var_no);
-						break;
-				}
-			}
-			else if(lookup->category==VARIABLE_t && lookup->scope==0){
-				switch(expr->pType->type){
-					case INTEGER_t:
-						fprintf(outfp, "getstatic %s/%s I\n",fileName,lookup->name);
-						break;
-					case REAL_t:
-						fprintf(outfp, "getstatic %s/%s F\n",fileName,lookup->name);
-						break;
-					case BOOLEAN_t:
-						fprintf(outfp, "getstatic %s/%s Z\n",fileName,lookup->name);
-						break;
-				}
-			}
-		}
-	}
+	GenExprIns();
 	switch(expr->pType->type){
 		case STRING_t:
 			fprintf(outfp, "invokevirtual java/io/PrintStream/print(Ljava/lang/String;)V\n");
@@ -170,83 +184,97 @@ void GenRead(struct expr_sem* expr){
 			switch(expr->pType->type){
 				case INTEGER_t:
 					fprintf(outfp, "invokevirtual java/util/Scanner/nextInt()I\n");
-					fprintf(outfp, "istore %d\n",lookup->attribute->var_no);
 					break;
 				case REAL_t:
 					fprintf(outfp, "invokevirtual java/util/Scanner/nextFloat()F\n");
-					fprintf(outfp, "fstore %d\n",lookup->attribute->var_no);
 					break;
 				case BOOLEAN_t:
 					fprintf(outfp, "invokevirtual java/util/Scanner/nextBoolean()Z\n");
-					fprintf(outfp, "istore %d\n",lookup->attribute->var_no);
 					break;
 			}
 		}else if(lookup->category==VARIABLE_t && lookup->scope==0){
 			switch(expr->pType->type){
 				case INTEGER_t:
 					fprintf(outfp, "invokevirtual java/util/Scanner/nextInt()I\n");
-					fprintf(outfp, "putstatic %s/%s I\n",fileName,lookup->name);
 					break;
 				case REAL_t:
 					fprintf(outfp, "invokevirtual java/util/Scanner/nextFloat()F\n");
-					fprintf(outfp, "putstatic %s/%s F\n",fileName,lookup->name);
 					break;
 				case BOOLEAN_t:
 					fprintf(outfp, "invokevirtual java/util/Scanner/nextBoolean()Z\n");
-					fprintf(outfp, "putstatic %s/%s Z\n",fileName,lookup->name);
 					break;
 			}
 		}
+		GenSaveExpr(expr);
 	}
+	ClearExprIns();
 	fprintf(outfp, "\n");
 }
 void LoadConstToStack(struct ConstAttr* constattr){
 	if(constattr->category==STRING_t){
-		fprintf(outfp, "ldc \"%s\"\n",constattr->value.stringVal);
+		snprintf(insBuf,sizeof(insBuf), "ldc \"%s\"\n",constattr->value.stringVal);
 	}
 	else if(constattr->category==INTEGER_t){
-		fprintf(outfp, "sipush %d\n",constattr->value.integerVal);
+		snprintf(insBuf,sizeof(insBuf), "sipush %d\n",constattr->value.integerVal);
 	}
 	else if(constattr->category==REAL_t){
-		fprintf(outfp, "ldc %lf\n",constattr->value.realVal);
+		snprintf(insBuf,sizeof(insBuf), "ldc %lf\n",constattr->value.realVal);
 	}
 	else if(constattr->category==BOOLEAN_t){
-		fprintf(outfp, "iconst_%d\n",constattr->value.booleanVal);
+		snprintf(insBuf,sizeof(insBuf), "iconst_%d\n",constattr->value.booleanVal);
 	}
-}
-void GenAssign(struct expr_sem* expr){
-	if(expr->varRef){
-		struct SymNode* lookup= lookupSymbol(symbolTable,expr->varRef->id,scope,__FALSE);
-		if(lookup){
-			if(lookup->category==VARIABLE_t && lookup->scope!=0){ //varible but not global
-				switch(expr->pType->type){
-					case INTEGER_t:
-						fprintf(outfp, "istore %d\n",lookup->attribute->var_no);
-						break;
-					case REAL_t:
-						fprintf(outfp, "fstore %d\n",lookup->attribute->var_no);
-						break;
-					case BOOLEAN_t:
-						fprintf(outfp, "istore %d\n",lookup->attribute->var_no);
-						break;
-				}
-			}
-			else if(lookup->category==VARIABLE_t && lookup->scope==0){
-				printf("global\n");
-				switch(expr->pType->type){
-					case INTEGER_t:
-						fprintf(outfp, "putstatic %s/%s I",fileName,lookup->name);
-						break;
-					case REAL_t:
-						fprintf(outfp, "putstatic %s/%s F",fileName,lookup->name);
-						break;
-					case BOOLEAN_t:
-						fprintf(outfp, "putstatic %s/%s Z",fileName,lookup->name);
-						break;
-				}
-			}
-		}
-	}
-	fprintf(outfp, "\n");
+	pushIns(insBuf);
+	memset(insBuf,0,sizeof(insBuf));
 }
 
+void GenArithmetic( struct expr_sem *op1, OPERATOR operator, struct expr_sem *op2){
+	GenLoadExpr(op2);
+	switch(operator){
+		case ADD_t:
+			if(op1->pType->type == INTEGER_t){
+				snprintf(insBuf,sizeof(insBuf), "iadd\n");
+			}
+			else if(op1->pType->type == REAL_t){
+				snprintf(insBuf,sizeof(insBuf), "fadd\n");
+			}
+			break;
+		case SUB_t:
+			if(op1 && op2){
+				if(op1->pType->type == INTEGER_t){
+					snprintf(insBuf,sizeof(insBuf), "isub\n");
+				}
+				else if(op1->pType->type == REAL_t){
+					snprintf(insBuf,sizeof(insBuf), "fsub\n");
+				}
+			}else{
+				if(op1->pType->type == INTEGER_t){
+					snprintf(insBuf,sizeof(insBuf), "ineg\n");
+				}
+				else if(op1->pType->type == REAL_t){
+					snprintf(insBuf,sizeof(insBuf), "fneg\n");
+				}
+			}
+			break;
+		case MUL_t:
+			if(op1->pType->type == INTEGER_t){
+				snprintf(insBuf,sizeof(insBuf), "imul\n");
+			}
+			else if(op1->pType->type == REAL_t){
+				snprintf(insBuf,sizeof(insBuf), "fmul\n");
+			}
+			break;
+		case DIV_t:
+			if(op1->pType->type == INTEGER_t){
+				snprintf(insBuf,sizeof(insBuf), "idiv\n");
+			}
+			else if(op1->pType->type == REAL_t){
+				snprintf(insBuf,sizeof(insBuf), "fdiv\n");
+			}
+			break;
+		case MOD_t:
+			snprintf(insBuf,sizeof(insBuf), "irem\n");
+			break;
+	}
+	pushIns(insBuf);
+	memset(insBuf,0,sizeof(insBuf));
+}
