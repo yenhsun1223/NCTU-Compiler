@@ -25,6 +25,7 @@ int yyerror(char* );
 
 int scope = 0;
 int var_no=1;
+int hasRead=0;
 
 int Opt_D = 1;			/* symbol table dump option */
 char fileName[256];
@@ -342,10 +343,11 @@ simple_stmt		: var_ref OP_ASSIGN boolean_expr MK_SEMICOLON
 			  // if both LHS and RHS are exists, verify their type
 			  if( flagLHS==__TRUE && flagRHS==__TRUE )
 				verifyAssignmentTypeMatch( $1, $3 );
+				GenAssign($1);
 			}
 			| PRINT  {GenPrintStart();}
 			boolean_expr MK_SEMICOLON { verifyScalarExpr( $3, "print" );GenPrint($3); }
- 			| READ boolean_expr MK_SEMICOLON { verifyScalarExpr( $2, "read" ); }
+ 			| READ boolean_expr MK_SEMICOLON { verifyScalarExpr( $2, "read" );GenReadStart(); GenRead($2);}
 			;
 
 proc_call_stmt		: ID MK_LPAREN opt_boolean_expr_list MK_RPAREN MK_SEMICOLON
