@@ -358,15 +358,15 @@ proc_call_stmt		: ID MK_LPAREN opt_boolean_expr_list MK_RPAREN MK_SEMICOLON
 			}
 			;
 
-cond_stmt		: IF condition THEN
-			  opt_stmt_list
+cond_stmt		: IF condition THEN opt_stmt_list {GenExprIns();pushIns("goto Lexit\nLfalse:\n"); }
 			  ELSE
-			  opt_stmt_list
-			  END IF
-			| IF condition THEN opt_stmt_list END IF
+			  opt_stmt_list {GenExprIns(); pushIns("Lexit:\n");}
+			  END IF{GenExprIns();} ;
+
+			| IF condition THEN opt_stmt_list {GenExprIns(); pushIns("Lfalse:\n");} END IF {GenExprIns();}
 			;
 
-condition		: boolean_expr { verifyBooleanExpr( $1, "if" ); }
+condition		: boolean_expr { verifyBooleanExpr( $1, "if" );pushIns("ifeq Lfalse\n");}
 			;
 
 while_stmt		: WHILE condition_while DO
@@ -446,6 +446,7 @@ boolean_factor		: OP_NOT boolean_factor
 
 relop_expr		: expr rel_op expr
 			{
+			  GenRelational($1,$2,$3);
 			  verifyRelOp( $1, $2, $3 );
 			  $$ = $1;
 			}

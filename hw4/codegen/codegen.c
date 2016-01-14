@@ -278,3 +278,37 @@ void GenArithmetic( struct expr_sem *op1, OPERATOR operator, struct expr_sem *op
 	pushIns(insBuf);
 	memset(insBuf,0,sizeof(insBuf));
 }
+void GenRelational( struct expr_sem *op1, OPERATOR operator, struct expr_sem *op2){
+	GenLoadExpr(op2);
+	if(op1->pType->type == INTEGER_t){
+		pushIns("isub\n");
+	}
+	else if(op1->pType->type == REAL_t){
+		pushIns("fcmpl\n");
+	}
+	switch(operator){
+		case LT_t:
+			pushIns( "iflt L1\n");
+			break;
+		case LE_t:
+			pushIns( "ifle L1\n");
+			break;
+		case NE_t:
+			pushIns( "ifne L1\n");
+			break;
+		case GE_t:
+			pushIns( "ifge L1\n");
+			break;
+		case GT_t:
+			pushIns( "ifgt L1\n");
+			break;
+		case EQ_t:
+			pushIns( "ifeq L1\n");
+			break;
+	}
+	pushIns( "iconst_0\n"); //false
+	pushIns( "goto L2\n");
+	pushIns( "L1:\n");
+	pushIns( "iconst_1\n");//true
+	pushIns( "L2:\n");
+}
