@@ -25,7 +25,6 @@ void GenSaveExpr(struct expr_sem* expr);
 
 void GenMethod(char*,int,char*,char*);
 void GenGlobalVar(char*,struct PType*);
-void GenPrintStart();
 void GenPrint(struct expr_sem*);
 void GenReadStart();
 void GenRead(struct expr_sem*);

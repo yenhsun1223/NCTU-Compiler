@@ -13,7 +13,6 @@ void pushIns(char* ins){
 void GenExprIns(){
 	int i;
 	for(i=0;i<insList.size;i++){
-		printf("%s\n",insList.list[i]);
 		fprintf(outfp, "%s",insList.list[i]);
 		free(insList.list[i]);
 	}
@@ -114,38 +113,37 @@ void GenSaveExpr(struct expr_sem* expr){
 			if(lookup->category==VARIABLE_t && lookup->scope!=0){ //varible but not global
 				switch(expr->pType->type){
 					case INTEGER_t:
-						fprintf(outfp, "istore %d\n",lookup->attribute->var_no);
+						snprintf(insBuf,sizeof(insBuf), "istore %d\n",lookup->attribute->var_no);
 						break;
 					case REAL_t:
-						fprintf(outfp, "fstore %d\n",lookup->attribute->var_no);
+						snprintf(insBuf,sizeof(insBuf), "fstore %d\n",lookup->attribute->var_no);
 						break;
 					case BOOLEAN_t:
-						fprintf(outfp, "istore %d\n",lookup->attribute->var_no);
+						snprintf(insBuf,sizeof(insBuf), "istore %d\n",lookup->attribute->var_no);
 						break;
 				}
 			}
 			else if(lookup->category==VARIABLE_t && lookup->scope==0){
 				switch(expr->pType->type){
 					case INTEGER_t:
-						fprintf(outfp, "putstatic %s/%s I",fileName,lookup->name);
+						snprintf(insBuf,sizeof(insBuf), "putstatic %s/%s I",fileName,lookup->name);
 						break;
 					case REAL_t:
-						fprintf(outfp, "putstatic %s/%s F",fileName,lookup->name);
+						snprintf(insBuf,sizeof(insBuf), "putstatic %s/%s F",fileName,lookup->name);
 						break;
 					case BOOLEAN_t:
-						fprintf(outfp, "putstatic %s/%s Z",fileName,lookup->name);
+						snprintf(insBuf,sizeof(insBuf), "putstatic %s/%s Z",fileName,lookup->name);
 						break;
 				}
 			}
 		}
+		pushIns(insBuf);
+		memset(insBuf,0,sizeof(insBuf));
 	}
-	fprintf(outfp, "\n");
 }
 
-void GenPrintStart(){
-	fprintf(outfp, "getstatic java/lang/System/out Ljava/io/PrintStream;\n");
-}
 void GenPrint(struct expr_sem* expr){
+	fprintf(outfp, "getstatic java/lang/System/out Ljava/io/PrintStream;\n");
 	GenExprIns();
 	switch(expr->pType->type){
 		case STRING_t:
@@ -205,9 +203,10 @@ void GenRead(struct expr_sem* expr){
 					break;
 			}
 		}
+		ClearExprIns();
 		GenSaveExpr(expr);
+		GenExprIns();
 	}
-	ClearExprIns();
 	fprintf(outfp, "\n");
 }
 void LoadConstToStack(struct ConstAttr* constattr){
@@ -228,7 +227,6 @@ void LoadConstToStack(struct ConstAttr* constattr){
 }
 
 void GenArithmetic( struct expr_sem *op1, OPERATOR operator, struct expr_sem *op2){
-	GenLoadExpr(op2);
 	switch(operator){
 		case ADD_t:
 			if(op1->pType->type == INTEGER_t){
@@ -256,6 +254,7 @@ void GenArithmetic( struct expr_sem *op1, OPERATOR operator, struct expr_sem *op
 			}
 			break;
 		case MUL_t:
+			GenLoadExpr(op2);
 			if(op1->pType->type == INTEGER_t){
 				snprintf(insBuf,sizeof(insBuf), "imul\n");
 			}
@@ -264,6 +263,7 @@ void GenArithmetic( struct expr_sem *op1, OPERATOR operator, struct expr_sem *op
 			}
 			break;
 		case DIV_t:
+			GenLoadExpr(op2);
 			if(op1->pType->type == INTEGER_t){
 				snprintf(insBuf,sizeof(insBuf), "idiv\n");
 			}
@@ -272,6 +272,7 @@ void GenArithmetic( struct expr_sem *op1, OPERATOR operator, struct expr_sem *op
 			}
 			break;
 		case MOD_t:
+			GenLoadExpr(op2);
 			snprintf(insBuf,sizeof(insBuf), "irem\n");
 			break;
 	}
@@ -279,7 +280,6 @@ void GenArithmetic( struct expr_sem *op1, OPERATOR operator, struct expr_sem *op
 	memset(insBuf,0,sizeof(insBuf));
 }
 void GenRelational( struct expr_sem *op1, OPERATOR operator, struct expr_sem *op2){
-	GenLoadExpr(op2);
 	if(op1->pType->type == INTEGER_t){
 		pushIns("isub\n");
 	}

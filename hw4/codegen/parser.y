@@ -344,11 +344,11 @@ simple_stmt		: var_ref OP_ASSIGN boolean_expr MK_SEMICOLON
 			  // if both LHS and RHS are exists, verify their type
 			  if( flagLHS==__TRUE && flagRHS==__TRUE )
 				verifyAssignmentTypeMatch( $1, $3 );
-				GenExprIns();
 				GenSaveExpr($1);
+				GenExprIns();
 			}
-			| PRINT  {GenPrintStart();}
-			boolean_expr MK_SEMICOLON { verifyScalarExpr( $3, "print" );GenPrint($3); }
+			| PRINT
+			boolean_expr MK_SEMICOLON { verifyScalarExpr( $2, "print" );GenPrint($2); }
  			| READ boolean_expr MK_SEMICOLON { verifyScalarExpr( $2, "read" );GenReadStart(); GenRead($2);}
 			;
 
@@ -369,8 +369,11 @@ cond_stmt		: IF condition THEN opt_stmt_list {GenExprIns();pushIns("goto Lexit\n
 condition		: boolean_expr { verifyBooleanExpr( $1, "if" );pushIns("ifeq Lfalse\n");}
 			;
 
-while_stmt		: WHILE condition_while DO
-			  opt_stmt_list
+while_stmt		: WHILE {pushIns("Lbegin:\n");GenExprIns();}condition_while
+			{
+			pushIns("ifeq Lexit\n");GenExprIns();}
+				DO
+			  opt_stmt_list {pushIns("goto Lbegin\nLexit:\n");GenExprIns();}
 			  END DO
 			;
 
@@ -381,7 +384,8 @@ for_stmt		: FOR ID
 			{
 			  insertLoopVarIntoTable( symbolTable, $2 );
 			}
-			  OP_ASSIGN loop_param TO loop_param
+			  OP_ASSIGN loop_param
+			  TO loop_param
 			{
 			  verifyLoopParam( $5, $7 );
 			}
