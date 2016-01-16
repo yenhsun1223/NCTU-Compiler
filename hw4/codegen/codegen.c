@@ -31,6 +31,7 @@ void GenProgramStart(char* pname){
 	fprintf(outfp, "; %s\n",pname);
 	fprintf(outfp, ".class public %s\n",pname);
 	fprintf(outfp, ".super java/lang/Object\n\n");
+	fprintf(outfp, ".field public static _sc Ljava/util/Scanner;\n ");
 
 }
 
@@ -39,7 +40,6 @@ void GenProgramEnd(){
 	fprintf(outfp, ".end method\n");
 }
 void GenMethod(char* name,int stack_lim,char* para,char* ret){
-	fprintf(outfp, ".field public static _sc Ljava/util/Scanner;\n ");
 	fprintf(outfp, ".method public static %s(%s)%s\n",name,para,ret);
 	fprintf(outfp, ".limit stack %d ; up to %ditems can be pushed\n",stack_lim,stack_lim);
 	fprintf(outfp, ".limit locals 64 ; up to 64 varibles can be pushed\n\n");
@@ -75,16 +75,16 @@ void GenLoadExpr(struct expr_sem* expr){
 						break;
 				}
 			}
-			else if(lookup->category==VARIABLE_t && lookup->scope!=0){
+			else if((lookup->category==VARIABLE_t ||lookup->category==PARAMETER_t)&& lookup->scope!=0){
 				switch(expr->pType->type){
 					case INTEGER_t:
-						snprintf(insBuf,sizeof(insBuf), "iload_%d\n",lookup->attribute->var_no);
+						snprintf(insBuf,sizeof(insBuf), "iload %d\n",lookup->attribute->var_no);
 						break;
 					case REAL_t:
-						snprintf(insBuf,sizeof(insBuf), "fload_%d\n",lookup->attribute->var_no);
+						snprintf(insBuf,sizeof(insBuf), "fload %d\n",lookup->attribute->var_no);
 						break;
 					case BOOLEAN_t:
-						snprintf(insBuf,sizeof(insBuf), "iload_%d\n",lookup->attribute->var_no);
+						snprintf(insBuf,sizeof(insBuf), "iload %d\n",lookup->attribute->var_no);
 						break;
 				}
 			}
@@ -141,10 +141,12 @@ void GenSaveExpr(struct expr_sem* expr){
 		memset(insBuf,0,sizeof(insBuf));
 	}
 }
-
-void GenPrint(struct expr_sem* expr){
+void GenPrintStart(){
 	fprintf(outfp, "getstatic java/lang/System/out Ljava/io/PrintStream;\n");
 	GenExprIns();
+}
+
+void GenPrint(struct expr_sem* expr){
 	switch(expr->pType->type){
 		case STRING_t:
 			fprintf(outfp, "invokevirtual java/io/PrintStream/print(Ljava/lang/String;)V\n");
@@ -311,4 +313,102 @@ void GenRelational( struct expr_sem *op1, OPERATOR operator, struct expr_sem *op
 	pushIns( "L1:\n");
 	pushIns( "iconst_1\n");//true
 	pushIns( "L2:\n");
+}
+void GenFunctionStart(char* id,struct param_sem* params,struct PType* ret){
+	struct param_sem *parPtr;
+	struct idNode_sem *idPtr;
+	snprintf(insBuf,sizeof(insBuf),".method public static %s(",id);
+	for( parPtr=params ; parPtr!=0 ; parPtr=(parPtr->next) ) {
+		for( idPtr=(parPtr->idlist) ; idPtr!=0 ; idPtr=(idPtr->next) ) {
+			switch(parPtr->pType->type){
+				case INTEGER_t:
+					strncat(insBuf,"I",sizeof(insBuf)-strlen(insBuf));
+					break;
+				case REAL_t:
+					strncat(insBuf,"F",sizeof(insBuf)-strlen(insBuf));
+					break;
+				case BOOLEAN_t:
+					strncat(insBuf,"Z",sizeof(insBuf)-strlen(insBuf));
+					break;
+			}
+		}
+	}
+	//return value
+	switch(ret->type){
+		case INTEGER_t:
+			strncat(insBuf,")I\n",sizeof(insBuf)-strlen(insBuf));
+			break;
+		case REAL_t:
+			strncat(insBuf,")F\n",sizeof(insBuf)-strlen(insBuf));
+			break;
+		case BOOLEAN_t:
+			strncat(insBuf,")Z\n",sizeof(insBuf)-strlen(insBuf));
+			break;
+		default:
+			strncat(insBuf,")V\n",sizeof(insBuf)-strlen(insBuf));
+			break;
+	}
+	pushIns(insBuf);
+	memset(insBuf,0,sizeof(insBuf));
+	pushIns(".limit stack 16 ; Sets the maximum size of the operand stack required by the method\n");
+	pushIns(".limit locals 16 ; Sets the maximum size of the operand stack required by the method\n");
+	GenExprIns();
+}
+void GenFunctionEnd(struct PType* ret){
+	switch(ret->type){
+		case INTEGER_t:
+			strncat(insBuf,"ireturn\n",sizeof(insBuf)-strlen(insBuf));
+			break;
+		case REAL_t:
+			strncat(insBuf,"freturn\n",sizeof(insBuf)-strlen(insBuf));
+			break;
+		case BOOLEAN_t:
+			strncat(insBuf,"ireturn\n",sizeof(insBuf)-strlen(insBuf));
+			break;
+		default:
+			strncat(insBuf,"return\n",sizeof(insBuf)-strlen(insBuf));
+			break;
+	}
+	strncat(insBuf,".end method\n\n",sizeof(insBuf)-strlen(insBuf));
+	pushIns(insBuf);
+	memset(insBuf,0,sizeof(insBuf));
+	GenExprIns();
+}
+void GenFunctionCall(char* id){
+	struct SymNode *node = 0;
+	node = lookupSymbol( symbolTable, id, 0, __FALSE );	// function always in scope 0
+	if(node){
+		snprintf(insBuf,sizeof(insBuf),"invokestatic %s/%s(",fileName,id);
+		struct PTypeList* parPtr;
+		for( parPtr=node->attribute->formalParam->params; parPtr!=0 ; parPtr=(parPtr->next) ) {
+			switch(parPtr->value->type){
+				case INTEGER_t:
+					strncat(insBuf,"I",sizeof(insBuf)-strlen(insBuf));
+					break;
+				case REAL_t:
+					strncat(insBuf,"F",sizeof(insBuf)-strlen(insBuf));
+					break;
+				case BOOLEAN_t:
+					strncat(insBuf,"Z",sizeof(insBuf)-strlen(insBuf));
+					break;
+			}
+		}
+		switch(node->type->type){
+			case INTEGER_t:
+				strncat(insBuf,")I\n",sizeof(insBuf)-strlen(insBuf));
+				break;
+			case REAL_t:
+				strncat(insBuf,")F\n",sizeof(insBuf)-strlen(insBuf));
+				break;
+			case BOOLEAN_t:
+				strncat(insBuf,")Z\n",sizeof(insBuf)-strlen(insBuf));
+				break;
+			default:
+				strncat(insBuf,")V\n",sizeof(insBuf)-strlen(insBuf));
+				break;
+		}
+		pushIns(insBuf);
+		GenExprIns();
+		memset(insBuf,0,sizeof(insBuf));
+	}
 }

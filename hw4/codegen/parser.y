@@ -82,11 +82,10 @@ program			: ID
 			  struct PType *pType = createPType( VOID_t );
 			  struct SymNode *newNode = createProgramNode( $1, scope, pType );
 			  insertTab( symbolTable, newNode );
-
+				GenProgramStart(fileName);
 			  if( strcmp(fileName,$1) ) {
 				fprintf( stdout, "########## Error at Line#%d: program beginning ID inconsist with file name ########## \n", linenum );
 			  }
-				GenProgramStart($1);
 			}
 			  MK_SEMICOLON
 			  program_body
@@ -96,14 +95,13 @@ program			: ID
 			  if( strcmp(fileName,$6) ) {
 				 fprintf( stdout, "########## Error at Line#%d: program end ID inconsist with file name ########## \n", linenum );
 			  }
-			  GenProgramEnd();
 			  // dump symbol table
 			  if( Opt_D == 1 )
 				printSymTable( symbolTable, scope );
 			}
 			;
 
-program_body		: opt_decl_list opt_func_decl_list {GenMethod("main",64,"[Ljava/lang/String;","V");} compound_stmt
+program_body		: opt_decl_list opt_func_decl_list { GenMethod("main",64,"[Ljava/lang/String;","V");} compound_stmt { GenProgramEnd();}
 			  ;
 
 opt_decl_list		: decl_list
@@ -226,6 +224,7 @@ func_decl_list		: func_decl_list func_decl
 func_decl		: ID MK_LPAREN opt_param_list
 			{
 			  // check and insert parameters into symbol table
+			  var_no=0;
 			  paramError = insertParamIntoSymTable( symbolTable, $3, scope+1 );
 			}
 			  MK_RPAREN opt_type
@@ -235,17 +234,19 @@ func_decl		: ID MK_LPAREN opt_param_list
 			  	printf("--- param(s) with several fault!! ---\n");
 			  } else {
 				insertFuncIntoSymTable( symbolTable, $1, $3, $6, scope );
+				GenFunctionStart($1,$3,$6);
 			  }
 			  funcReturn = $6;
 			}
 			  MK_SEMICOLON
-			  compound_stmt
+			  compound_stmt {GenExprIns();GenFunctionEnd($6);}
 			  END ID
 			{
-			  if( strcmp($1,$11) ) {
+			  if( strcmp($1,$12) ) {
 				fprintf( stdout, "########## Error at Line #%d: the end of the functionName mismatch ########## \n", linenum );
 			  }
 			  funcReturn = 0;
+			  var_no=1;
 			}
 			;
 
@@ -347,14 +348,15 @@ simple_stmt		: var_ref OP_ASSIGN boolean_expr MK_SEMICOLON
 				GenSaveExpr($1);
 				GenExprIns();
 			}
-			| PRINT
-			boolean_expr MK_SEMICOLON { verifyScalarExpr( $2, "print" );GenPrint($2); }
+			| PRINT{GenPrintStart();}
+			boolean_expr MK_SEMICOLON { verifyScalarExpr( $3, "print" );GenPrint($3); }
  			| READ boolean_expr MK_SEMICOLON { verifyScalarExpr( $2, "read" );GenReadStart(); GenRead($2);}
 			;
 
 proc_call_stmt		: ID MK_LPAREN opt_boolean_expr_list MK_RPAREN MK_SEMICOLON
 			{
 			  verifyFuncInvoke( $1, $3, symbolTable, scope );
+			  GenFunctionCall($1);
 			}
 			;
 
@@ -404,6 +406,7 @@ loop_param		: INT_CONST { $$ = $1; }
 return_stmt		: RETURN boolean_expr MK_SEMICOLON
 			{
 			  verifyReturnStatement( $2, funcReturn );
+			  GenExprIns();
 			}
 			;
 
@@ -527,11 +530,13 @@ factor			: var_ref
 			{
 			  $$ = verifyFuncInvoke( $1, $3, symbolTable, scope );
 			  $$->beginningOp = NONE_t;
+			  GenFunctionCall($1);
 			}
 			| OP_SUB ID MK_LPAREN opt_boolean_expr_list MK_RPAREN
 			{
 			  $$ = verifyFuncInvoke( $2, $4, symbolTable, scope );
 			  $$->beginningOp = SUB_t;
+			  GenFunctionCall($2);
 			}
 			| literal_const
 			{
