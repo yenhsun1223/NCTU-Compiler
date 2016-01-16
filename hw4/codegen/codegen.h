@@ -35,3 +35,5 @@ void GenRelational( struct expr_sem *op1, OPERATOR operator, struct expr_sem *op
 void GenFunctionStart(char* id,struct param_sem* params,struct PType* ret);
 void GenFunctionEnd(struct PType* ret);
 void GenFunctionCall(char* id);
+void GenForLoop(char* id,int start,int end);
+void GenForLoopEnd(char* id);

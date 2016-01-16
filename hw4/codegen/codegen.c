@@ -101,10 +101,16 @@ void GenLoadExpr(struct expr_sem* expr){
 						break;
 				}
 			}
+		}else{
+				lookup= lookupLoopVar(symbolTable,expr->varRef->id);
+				if(lookup){
+					snprintf(insBuf,sizeof(insBuf), "iload %d\n",lookup->attribute->var_no);
+				}
+			}
 			pushIns(insBuf);
 			memset(insBuf,0,sizeof(insBuf));
 		}
-	}
+
 }
 void GenSaveExpr(struct expr_sem* expr){
 	if(expr->varRef){
@@ -142,8 +148,9 @@ void GenSaveExpr(struct expr_sem* expr){
 	}
 }
 void GenPrintStart(){
-	fprintf(outfp, "getstatic java/lang/System/out Ljava/io/PrintStream;\n");
-	GenExprIns();
+	snprintf(insBuf,sizeof(insBuf), "getstatic java/lang/System/out Ljava/io/PrintStream;\n");
+	pushIns(insBuf);
+	memset(insBuf,0,sizeof(insBuf));
 }
 
 void GenPrint(struct expr_sem* expr){
@@ -290,29 +297,29 @@ void GenRelational( struct expr_sem *op1, OPERATOR operator, struct expr_sem *op
 	}
 	switch(operator){
 		case LT_t:
-			pushIns( "iflt L1\n");
+			pushIns( "iflt Ltrue_1\n");
 			break;
 		case LE_t:
-			pushIns( "ifle L1\n");
+			pushIns( "ifle Ltrue_1\n");
 			break;
 		case NE_t:
-			pushIns( "ifne L1\n");
+			pushIns( "ifne Ltrue_1\n");
 			break;
 		case GE_t:
-			pushIns( "ifge L1\n");
+			pushIns( "ifge Ltrue_1\n");
 			break;
 		case GT_t:
-			pushIns( "ifgt L1\n");
+			pushIns( "ifgt Ltrue_1\n");
 			break;
 		case EQ_t:
-			pushIns( "ifeq L1\n");
+			pushIns( "ifeq Ltrue_1\n");
 			break;
 	}
 	pushIns( "iconst_0\n"); //false
-	pushIns( "goto L2\n");
-	pushIns( "L1:\n");
+	pushIns( "goto Lfalse_2\n");
+	pushIns( "Ltrue_1:\n");
 	pushIns( "iconst_1\n");//true
-	pushIns( "L2:\n");
+	pushIns( "Lfalse_2:\n");
 }
 void GenFunctionStart(char* id,struct param_sem* params,struct PType* ret){
 	struct param_sem *parPtr;
@@ -411,4 +418,30 @@ void GenFunctionCall(char* id){
 		GenExprIns();
 		memset(insBuf,0,sizeof(insBuf));
 	}
+}
+void GenForLoop(char* id,int start,int end){
+	struct SymNode* ptr;
+	ptr=lookupLoopVar(symbolTable,id);
+	if(ptr){
+		snprintf(insBuf,sizeof(insBuf),"sipush %d\nistore %d\nLbegin:\niload %d\nsipush %d\n"\
+				,start,ptr->attribute->var_no,ptr->attribute->var_no,end);
+		strncat(insBuf,"isub\niflt Ltrue\niconst_0\ngoto Lfalse\nLtrue:\niconst_1\nLfalse:\nifeq Lexit\n"\
+				,sizeof(insBuf)-strlen(insBuf));
+		pushIns(insBuf);
+		GenExprIns();
+		memset(insBuf,0,sizeof(insBuf));
+	}
+}
+void GenForLoopEnd(char* id){
+	struct SymNode* ptr;
+	ptr=lookupLoopVar(symbolTable,id);
+	if(ptr){
+		snprintf(insBuf,sizeof(insBuf),"iload %d\nsipush 1\niadd\nistore %d\n"\
+				,ptr->attribute->var_no,ptr->attribute->var_no);
+		pushIns(insBuf);
+		memset(insBuf,0,sizeof(insBuf));
+		pushIns("goto Lbegin\nLexit:\n\n");
+		GenExprIns();
+	}
+
 }

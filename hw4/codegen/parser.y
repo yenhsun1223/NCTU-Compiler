@@ -361,7 +361,7 @@ proc_call_stmt		: ID MK_LPAREN opt_boolean_expr_list MK_RPAREN MK_SEMICOLON
 			}
 			;
 
-cond_stmt		: IF condition THEN opt_stmt_list {GenExprIns();pushIns("goto Lexit\nLfalse:\n"); }
+cond_stmt		: IF condition THEN opt_stmt_list {GenExprIns();pushIns("goto Lexit\nLfalse:\n");GenExprIns(); }
 			  ELSE
 			  opt_stmt_list {GenExprIns(); pushIns("Lexit:\n");}
 			  END IF{GenExprIns();} ;
@@ -391,11 +391,13 @@ for_stmt		: FOR ID
 			  TO loop_param
 			{
 			  verifyLoopParam( $5, $7 );
+			  GenForLoop($2,$5,$7);
 			}
 			  DO
-			  opt_stmt_list
+			  opt_stmt_list{ GenExprIns();}
 			  END DO
 			{
+			  GenForLoopEnd($2);
 			  popLoopVar( symbolTable );
 			}
 			;
