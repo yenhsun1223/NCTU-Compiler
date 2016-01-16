@@ -349,7 +349,8 @@ simple_stmt		: var_ref OP_ASSIGN boolean_expr MK_SEMICOLON
 				GenExprIns();
 			}
 			| PRINT{GenPrintStart();}
-			boolean_expr MK_SEMICOLON { verifyScalarExpr( $3, "print" );GenPrint($3); }
+			boolean_expr{GenExprIns();}
+			MK_SEMICOLON { verifyScalarExpr( $3, "print" );GenPrint($3); }
  			| READ boolean_expr MK_SEMICOLON { verifyScalarExpr( $2, "read" );GenReadStart(); GenRead($2);}
 			;
 
