@@ -252,17 +252,19 @@ void LoadConstToStack(struct ConstAttr* constattr){
 }
 
 void GenArithmetic( struct expr_sem *op1, OPERATOR operator, struct expr_sem *op2){
+
 	if( ((op1->pType->type==INTEGER_t || op1->pType->type==REAL_t) && \
 				(op2->pType->type==INTEGER_t || op2->pType->type==REAL_t)) ) {	// need to consider type coercion
-				if( op1->pType->type==INTEGER_t && op2->pType->type==REAL_t) {
-					ClearExprIns();
-					GenToList("i2f\n");
-					if(operator==ADD_t ||operator == SUB_t){
-						GenLoadExpr(op2);
-					}
-					op1->pType->type = REAL_t;
-				}
+		if( op1->pType->type==INTEGER_t && op2->pType->type==REAL_t) {
+			ClearExprIns();
+			GenToList("i2f\n");
+			GenLoadExpr(op2);
+			op1->pType->type = REAL_t;
+		}else if( op1->pType->type==REAL_t && op2->pType->type==INTEGER_t){
+			GenToList("i2f\n");
+		}
 	}
+
 
 	switch(operator){
 		case ADD_t:
@@ -291,7 +293,6 @@ void GenArithmetic( struct expr_sem *op1, OPERATOR operator, struct expr_sem *op
 			}
 			break;
 		case MUL_t:
-			GenLoadExpr(op2);
 			if(op1->pType->type == INTEGER_t){
 				snprintf(insBuf,sizeof(insBuf), "imul\n");
 			}
@@ -300,7 +301,6 @@ void GenArithmetic( struct expr_sem *op1, OPERATOR operator, struct expr_sem *op
 			}
 			break;
 		case DIV_t:
-			GenLoadExpr(op2);
 			if(op1->pType->type == INTEGER_t){
 				snprintf(insBuf,sizeof(insBuf), "idiv\n");
 			}
@@ -309,7 +309,6 @@ void GenArithmetic( struct expr_sem *op1, OPERATOR operator, struct expr_sem *op
 			}
 			break;
 		case MOD_t:
-			GenLoadExpr(op2);
 			snprintf(insBuf,sizeof(insBuf), "irem\n");
 			break;
 	}
