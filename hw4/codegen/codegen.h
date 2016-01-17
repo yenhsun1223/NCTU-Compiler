@@ -6,14 +6,25 @@ extern struct SymTable *symbolTable;	// main symbol table
 extern char fileName[256];
 extern struct insList insList;
 
+
 struct insList{
 	char* list[2048];
 	int size;
 };
 char insBuf[256];
 
+struct loop_stack{
+	int stack[100];
+	int top;
+} ;
+struct cond_stack{
+	int stack[100];
+	int top;
+} ;
+
 void initInsList(struct insList);
 void pushIns(char* ins);
+void GenToList(char* fmt,...);
 void GenExprIns();
 void ClearExprIns();
 
@@ -21,7 +32,7 @@ void GenProgramStart(char*);
 void GenProgramEnd();
 
 void GenLoadExpr(struct expr_sem* expr);
-void GenSaveExpr(struct expr_sem* expr);
+void GenSaveExpr(struct expr_sem* expr,struct expr_sem* RHS);
 
 void GenMethod(char*,int,char*,char*);
 void GenGlobalVar(char*,struct PType*);
@@ -37,3 +48,4 @@ void GenFunctionEnd(struct PType* ret);
 void GenFunctionCall(char* id);
 void GenForLoop(char* id,int start,int end);
 void GenForLoopEnd(char* id);
+void GenCoercion(struct expr_sem* LHS,struct expr_sem* RHS);

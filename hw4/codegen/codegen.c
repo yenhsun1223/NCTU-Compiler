@@ -2,10 +2,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdarg.h>
 
 #include "header.h"
 #include "symtab.h"
 #include"codegen.h"
+int label_count=-1; //count loop label
+int tf_count=-1; //count Ltrue,Lfalse;
+struct loop_stack loopStack;
+struct cond_stack condStack;
+
 
 void pushIns(char* ins){
 	insList.list[insList.size++]=strdup(ins);
@@ -28,6 +34,8 @@ void ClearExprIns(){
 }
 
 void GenProgramStart(char* pname){
+	loopStack.top=-1;
+	condStack.top=-1;
 	fprintf(outfp, "; %s\n",pname);
 	fprintf(outfp, ".class public %s\n",pname);
 	fprintf(outfp, ".super java/lang/Object\n\n");
@@ -112,7 +120,7 @@ void GenLoadExpr(struct expr_sem* expr){
 		}
 
 }
-void GenSaveExpr(struct expr_sem* expr){
+void GenSaveExpr(struct expr_sem* expr,struct expr_sem* RHS){
 	if(expr->varRef){
 		struct SymNode* lookup= lookupSymbol(symbolTable,expr->varRef->id,scope,__FALSE);
 		if(lookup){
@@ -122,7 +130,11 @@ void GenSaveExpr(struct expr_sem* expr){
 						snprintf(insBuf,sizeof(insBuf), "istore %d\n",lookup->attribute->var_no);
 						break;
 					case REAL_t:
-						snprintf(insBuf,sizeof(insBuf), "fstore %d\n",lookup->attribute->var_no);
+						if(RHS && RHS->pType->type==INTEGER_t){
+							snprintf(insBuf,sizeof(insBuf), "i2f\nfstore %d\n",lookup->attribute->var_no);
+						}else{
+							snprintf(insBuf,sizeof(insBuf), "fstore %d\n",lookup->attribute->var_no);
+						}
 						break;
 					case BOOLEAN_t:
 						snprintf(insBuf,sizeof(insBuf), "istore %d\n",lookup->attribute->var_no);
@@ -132,13 +144,17 @@ void GenSaveExpr(struct expr_sem* expr){
 			else if(lookup->category==VARIABLE_t && lookup->scope==0){
 				switch(expr->pType->type){
 					case INTEGER_t:
-						snprintf(insBuf,sizeof(insBuf), "putstatic %s/%s I",fileName,lookup->name);
+						snprintf(insBuf,sizeof(insBuf), "putstatic %s/%s I\n",fileName,lookup->name);
 						break;
 					case REAL_t:
-						snprintf(insBuf,sizeof(insBuf), "putstatic %s/%s F",fileName,lookup->name);
+						if(RHS && RHS->pType->type==INTEGER_t){
+							snprintf(insBuf,sizeof(insBuf), "i2f\nputstatic %s/%s F\n",fileName,lookup->name);
+						}else{
+							snprintf(insBuf,sizeof(insBuf), "putstatic %s/%s F\n",fileName,lookup->name);
+						}
 						break;
 					case BOOLEAN_t:
-						snprintf(insBuf,sizeof(insBuf), "putstatic %s/%s Z",fileName,lookup->name);
+						snprintf(insBuf,sizeof(insBuf), "putstatic %s/%s Z\n",fileName,lookup->name);
 						break;
 				}
 			}
@@ -213,7 +229,7 @@ void GenRead(struct expr_sem* expr){
 			}
 		}
 		ClearExprIns();
-		GenSaveExpr(expr);
+		GenSaveExpr(expr,NULL);
 		GenExprIns();
 	}
 	fprintf(outfp, "\n");
@@ -236,6 +252,18 @@ void LoadConstToStack(struct ConstAttr* constattr){
 }
 
 void GenArithmetic( struct expr_sem *op1, OPERATOR operator, struct expr_sem *op2){
+	if( ((op1->pType->type==INTEGER_t || op1->pType->type==REAL_t) && \
+				(op2->pType->type==INTEGER_t || op2->pType->type==REAL_t)) ) {	// need to consider type coercion
+				if( op1->pType->type==INTEGER_t && op2->pType->type==REAL_t) {
+					ClearExprIns();
+					GenToList("i2f\n");
+					if(operator==ADD_t ||operator == SUB_t){
+						GenLoadExpr(op2);
+					}
+					op1->pType->type = REAL_t;
+				}
+	}
+
 	switch(operator){
 		case ADD_t:
 			if(op1->pType->type == INTEGER_t){
@@ -297,29 +325,30 @@ void GenRelational( struct expr_sem *op1, OPERATOR operator, struct expr_sem *op
 	}
 	switch(operator){
 		case LT_t:
-			pushIns( "iflt Ltrue_1\n");
+			GenToList( "iflt Ltrue_%d\n",tf_count);
 			break;
 		case LE_t:
-			pushIns( "ifle Ltrue_1\n");
+			GenToList( "ifle Ltrue_%d\n",tf_count);
 			break;
 		case NE_t:
-			pushIns( "ifne Ltrue_1\n");
+			GenToList( "ifne Ltrue_%d\n",tf_count);
 			break;
 		case GE_t:
-			pushIns( "ifge Ltrue_1\n");
+			GenToList( "ifge Ltrue_%d\n",tf_count);
 			break;
 		case GT_t:
-			pushIns( "ifgt Ltrue_1\n");
+			GenToList( "ifgt Ltrue_%d\n",tf_count);
 			break;
 		case EQ_t:
-			pushIns( "ifeq Ltrue_1\n");
+			GenToList( "ifeq Ltrue_%d\n",tf_count);
 			break;
 	}
 	pushIns( "iconst_0\n"); //false
-	pushIns( "goto Lfalse_2\n");
-	pushIns( "Ltrue_1:\n");
+	GenToList( "goto Lfalse_%d\n",tf_count);
+	GenToList( "Ltrue_%d:\n",tf_count);
 	pushIns( "iconst_1\n");//true
-	pushIns( "Lfalse_2:\n");
+	GenToList( "Lfalse_%d:\n",tf_count);
+	tf_count++;
 }
 void GenFunctionStart(char* id,struct param_sem* params,struct PType* ret){
 	struct param_sem *parPtr;
@@ -420,28 +449,45 @@ void GenFunctionCall(char* id){
 	}
 }
 void GenForLoop(char* id,int start,int end){
+	loopStack.top++;
+	label_count++;
 	struct SymNode* ptr;
 	ptr=lookupLoopVar(symbolTable,id);
 	if(ptr){
-		snprintf(insBuf,sizeof(insBuf),"sipush %d\nistore %d\nLbegin:\niload %d\nsipush %d\n"\
-				,start,ptr->attribute->var_no,ptr->attribute->var_no,end);
-		strncat(insBuf,"isub\niflt Ltrue\niconst_0\ngoto Lfalse\nLtrue:\niconst_1\nLfalse:\nifeq Lexit\n"\
-				,sizeof(insBuf)-strlen(insBuf));
+		loopStack.stack[loopStack.top]=label_count; //push to stack
+
+		snprintf(insBuf,sizeof(insBuf),"\nsipush %d\nistore %d\nLbegin_%d:\niload %d\nsipush %d\nisub\niflt Ltrue_%d\niconst_0\ngoto Lfalse_%d\nLtrue_%d:\niconst_1\nLfalse_%d:\nifeq Lexit_%d\n"\
+	,start,ptr->attribute->var_no,loopStack.stack[loopStack.top],ptr->attribute->var_no,end,loopStack.stack[loopStack.top],loopStack.stack[loopStack.top],loopStack.stack[loopStack.top],loopStack.stack[loopStack.top],loopStack.stack[loopStack.top]);
 		pushIns(insBuf);
 		GenExprIns();
 		memset(insBuf,0,sizeof(insBuf));
 	}
+
 }
 void GenForLoopEnd(char* id){
 	struct SymNode* ptr;
 	ptr=lookupLoopVar(symbolTable,id);
 	if(ptr){
-		snprintf(insBuf,sizeof(insBuf),"iload %d\nsipush 1\niadd\nistore %d\n"\
-				,ptr->attribute->var_no,ptr->attribute->var_no);
+		snprintf(insBuf,sizeof(insBuf),"iload %d\nsipush 1\niadd\nistore %d\ngoto Lbegin_%d\nLexit_%d:\n\n"\
+				,ptr->attribute->var_no,ptr->attribute->var_no,loopStack.stack[loopStack.top],loopStack.stack[loopStack.top]);
 		pushIns(insBuf);
 		memset(insBuf,0,sizeof(insBuf));
-		pushIns("goto Lbegin\nLexit:\n\n");
 		GenExprIns();
 	}
+	loopStack.top--;
 
+}
+void GenToList(char* fmt,...){
+	char tmp[256];
+
+	va_list para;
+	va_start(para,fmt);
+	vsnprintf(tmp,sizeof(tmp),fmt,para);
+	va_end(para);
+	pushIns(tmp);
+}
+void GenCoercion(struct expr_sem* LHS,struct expr_sem* RHS){
+	if(LHS->pType->type==INTEGER_t && RHS->pType->type == REAL_t){
+		GenToList("i2f\n");
+	}
 }

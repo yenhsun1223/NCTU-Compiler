@@ -21,6 +21,10 @@ extern FILE *yyin;		/* declared by lex */
 extern char *yytext;		/* declared by lex */
 extern char buf[256];		/* declared in lex.l */
 extern int yylex(void);
+extern int label_count;
+extern int tf_count;
+extern struct loop_stack loopStack;
+extern struct cond_stack condStack;
 int yyerror(char* );
 
 int scope = 0;
@@ -345,7 +349,7 @@ simple_stmt		: var_ref OP_ASSIGN boolean_expr MK_SEMICOLON
 			  // if both LHS and RHS are exists, verify their type
 			  if( flagLHS==__TRUE && flagRHS==__TRUE )
 				verifyAssignmentTypeMatch( $1, $3 );
-				GenSaveExpr($1);
+				GenSaveExpr($1,$3);
 				GenExprIns();
 			}
 			| PRINT{GenPrintStart();}
@@ -361,23 +365,66 @@ proc_call_stmt		: ID MK_LPAREN opt_boolean_expr_list MK_RPAREN MK_SEMICOLON
 			}
 			;
 
-cond_stmt		: IF condition THEN opt_stmt_list {GenExprIns();pushIns("goto Lexit\nLfalse:\n");GenExprIns(); }
+cond_stmt		: IF condition THEN opt_stmt_list
+				{
+				GenExprIns();
+				GenToList("goto Lcondexit_%d\nLfalse_%d:\n",loopStack.stack[loopStack.top],loopStack.stack[loopStack.top]);
+				GenExprIns();
+				}
 			  ELSE
-			  opt_stmt_list {GenExprIns(); pushIns("Lexit:\n");}
-			  END IF{GenExprIns();} ;
+			  opt_stmt_list
+				{
+				GenExprIns();
+				GenToList("Lcondexit_%d:\n",loopStack.stack[loopStack.top]);
+				loopStack.top--;
+				}
+			  END IF
+				{
+				GenExprIns();
+				}
 
-			| IF condition THEN opt_stmt_list {GenExprIns(); pushIns("Lfalse:\n");} END IF {GenExprIns();}
-			;
-
-condition		: boolean_expr { verifyBooleanExpr( $1, "if" );pushIns("ifeq Lfalse\n");}
-			;
-
-while_stmt		: WHILE {pushIns("Lbegin:\n");GenExprIns();}condition_while
+			| IF condition THEN opt_stmt_list
 			{
-			pushIns("ifeq Lexit\n");GenExprIns();}
+			GenExprIns();
+			GenToList("Lfalse_%d:\n",loopStack.stack[loopStack.top]);
+			}
+			END IF
+			{
+			GenExprIns();
+			loopStack.top--;
+			}
+			;
+
+condition		: boolean_expr
+		   {
+			loopStack.top++;
+			label_count++;
+			loopStack.stack[loopStack.top]=label_count;
+		   verifyBooleanExpr( $1, "if" );
+		   GenToList("ifeq Lfalse_%d\n",loopStack.stack[loopStack.top]);
+		   }
+			;
+
+while_stmt		: WHILE
+			{
+			loopStack.top++;
+			label_count++;
+			loopStack.stack[loopStack.top]=label_count; //push to stack
+			GenToList("Lbegin_%d:\n",loopStack.stack[loopStack.top]);
+			GenExprIns();
+			}
+			condition_while
+			{
+			GenToList("ifeq Lexit_%d\n",loopStack.stack[loopStack.top]);
+			GenExprIns();
+			}
 				DO
-			  opt_stmt_list {pushIns("goto Lbegin\nLexit:\n");GenExprIns();}
-			  END DO
+			  opt_stmt_list
+			  {
+			  GenToList("goto Lbegin_%d\nLexit_%d:\n",loopStack.stack[loopStack.top],loopStack.stack[loopStack.top]);
+			  GenExprIns();
+			  }
+			  END DO {loopStack.top--;}
 			;
 
 condition_while		: boolean_expr { verifyBooleanExpr( $1, "while" ); }
@@ -471,11 +518,12 @@ rel_op			: OP_LT { $$ = LT_t; }
 			| OP_NE { $$ = NE_t; }
 			;
 
-expr			: expr add_op term
+expr			: expr add_op{GenExprIns();} term
 			{
-			  verifyArithmeticOp( $1, $2, $3 );
-				GenArithmetic($1,$2,$3);
-			  $$ = $1;
+				GenArithmetic($1,$2,$4);
+				verifyArithmeticOp( $1, $2, $4 );
+				GenExprIns();
+				$$ = $1;
 			}
 			| term { $$ = $1; }
 			;
@@ -484,18 +532,18 @@ add_op			: OP_ADD { $$ = ADD_t; }
 			| OP_SUB { $$ = SUB_t; }
 			;
 
-term			: term mul_op factor
+term			: term mul_op{GenExprIns();} factor
 			{
+				GenArithmetic($1,$2,$4);
 			  if( $2 == MOD_t ) {
-				verifyModOp( $1, $3 );
+				verifyModOp( $1, $4 );
 			  }
 			  else {
-				verifyArithmeticOp( $1, $2, $3 );
+				verifyArithmeticOp( $1, $2, $4 );
 			  }
-				GenArithmetic($1,$2,$3);
 			  $$ = $1;
 			}
-			| factor { $$ = $1;  GenLoadExpr($1);}
+			| factor { $$ = $1;  }
 			;
 
 mul_op			: OP_MUL { $$ = MUL_t; }
@@ -506,12 +554,14 @@ mul_op			: OP_MUL { $$ = MUL_t; }
 factor			: var_ref
 			{
 			  verifyExistence( symbolTable, $1, scope, __FALSE );
+			  GenLoadExpr($1);
 			  $$ = $1;
 			  $$->beginningOp = NONE_t;
 			}
 			| OP_SUB var_ref
 			{
 			   verifyExistence( symbolTable, $2, scope, __FALSE );
+			  GenLoadExpr($2);
 				verifyUnaryMinus( $2 );
 				GenArithmetic($2,SUB_t,0);
 			  $$ = $2;
@@ -519,12 +569,14 @@ factor			: var_ref
 			}
 			| MK_LPAREN boolean_expr MK_RPAREN
 			{
+			  GenLoadExpr($2);
 			  $2->beginningOp = NONE_t;
 			  $$ = $2;
 			}
 			| OP_SUB MK_LPAREN boolean_expr MK_RPAREN
 			{
 			  verifyUnaryMinus( $3 );
+			  GenLoadExpr($3);
 				GenArithmetic($3,SUB_t,0);
 			  $$ = $3;
 			  $$->beginningOp = SUB_t;
@@ -533,12 +585,14 @@ factor			: var_ref
 			{
 			  $$ = verifyFuncInvoke( $1, $3, symbolTable, scope );
 			  $$->beginningOp = NONE_t;
+			  GenLoadExpr($3);
 			  GenFunctionCall($1);
 			}
 			| OP_SUB ID MK_LPAREN opt_boolean_expr_list MK_RPAREN
 			{
 			  $$ = verifyFuncInvoke( $2, $4, symbolTable, scope );
 			  $$->beginningOp = SUB_t;
+			  GenLoadExpr($4);
 			  GenFunctionCall($2);
 			}
 			| literal_const
@@ -559,8 +613,8 @@ factor			: var_ref
 			;
 
 var_ref			: ID
-			{
-			  $$ = createExprSem( $1 );
+			  {
+			  $$= createExprSem( $1 );
 			}
 			| var_ref dim
 			{
