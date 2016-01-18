@@ -594,6 +594,7 @@ factor			: var_ref
 			  $$ = verifyFuncInvoke( $2, $4, symbolTable, scope );
 			  $$->beginningOp = SUB_t;
 			  GenFunctionCall($2);
+			  GenNegative($4);
 			}
 			| literal_const
 			{

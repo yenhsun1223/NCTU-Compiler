@@ -516,3 +516,10 @@ void GenCoercion(struct expr_sem* LHS,struct expr_sem* RHS){
 		GenToList("i2f\n");
 	}
 }
+void GenNegative(struct expr_sem* expr){
+	if(expr->pType->type==INTEGER_t){
+		GenToList("ineg\n");
+	}else if(expr->pType->type==REAL_t){
+		GenToList("fneg\n");
+	}
+}

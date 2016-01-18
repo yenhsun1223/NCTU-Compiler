@@ -70,7 +70,7 @@ void popLoopVar( struct SymTable *table )
 	(table->loopVarDepth)--;
 }
 
-struct SymNode *createLoopVarNode( const char *name )
+struct SymNode *createLoopVarNode( const char *name,int var_no )
 {
 	struct SymNode *newNode = (struct SymNode *)malloc( sizeof(struct SymNode) );
 	/* setup name */
@@ -88,7 +88,8 @@ struct SymNode *createLoopVarNode( const char *name )
 	/* Category: variable */
 	newNode->category = LOOPVAR_t;
 	/* without attribute */
-	newNode->attribute = 0;
+	newNode->attribute = (union SymAttr*)malloc(sizeof(int));
+	newNode->attribute->var_no=var_no;
 
 	newNode->next = 0;
 	newNode->prev = 0;
@@ -118,7 +119,7 @@ struct SymNode* createVarNode( const char *name, int scope, struct PType *type,i
 	return newNode;
 }
 
-struct SymNode* createParamNode( const char *name, int scope, struct PType *type )
+struct SymNode* createParamNode( const char *name, int scope, struct PType *type,int var_no )
 {
 	struct SymNode *newNode = (struct SymNode *)malloc( sizeof(struct SymNode) );
 	/* setup name */
@@ -131,7 +132,9 @@ struct SymNode* createParamNode( const char *name, int scope, struct PType *type
 	/* Category: parameter */
 	newNode->category = PARAMETER_t;
 	/* without attribute */
-	newNode->attribute = 0;
+	//newNode->attribute = 0;
+	newNode->attribute = (union SymAttr*)malloc(sizeof(int));
+	newNode->attribute->var_no=var_no;
 
 	newNode->next = 0;
 	newNode->prev = 0;
@@ -456,7 +459,7 @@ void printSymTable( struct SymTable *table, int __scope )
 						break;
 					}
 				}
-				else if(ptr->category == VARIABLE_t){
+				else if(ptr->category == VARIABLE_t || ptr->category == PARAMETER_t){
 					printf("%d",ptr->attribute->var_no);
 				}
 

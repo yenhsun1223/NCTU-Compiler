@@ -50,3 +50,4 @@ void GenFunctionCall(char* id);
 void GenForLoop(char* id,int start,int end);
 void GenForLoopEnd(char* id);
 void GenCoercion(struct expr_sem* LHS,struct expr_sem* RHS);
+void GenNegative(struct expr_sem* expr);
