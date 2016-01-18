@@ -28,7 +28,6 @@ int  main( int argc, char **argv )
 	}
 
 	FILE *fp = fopen( argv[1], "r" );
-	outfp = fopen("output.j","w");
 
 	if( fp == NULL )  {
 		fprintf( stdout, "Open  file  error\n" );
@@ -50,6 +49,11 @@ int  main( int argc, char **argv )
 		exit(-1);
 	}
 	fileName[fileNameLength-2] = '\0';
+
+    char outputFN[64];
+    snprintf(outputFN,sizeof(outputFN),"%s.j",fileName);
+
+	outfp = fopen(outputFN,"w");
 
 	yyin = fp;
 
