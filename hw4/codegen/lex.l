@@ -29,6 +29,7 @@ void setPseudoComment( const char * );	/* pseudo comment option switch */
 float scientificToFloat( const char *str );
 
 extern int Opt_D;
+extern FILE* outfp;
 %}
 
 whitespace [ \t]+
@@ -93,31 +94,31 @@ identifier ({letter})({letter}|{digit})*
 "var"				{ token(KWvar); return VAR; }
 "while"				{ token(KWwhile); return WHILE; }
 
-{identifier}			{ 
+{identifier}			{
 				  char actualID[33];
 				  memset( actualID, 0, sizeof(actualID) );
 				  strncpy( actualID, yytext, 32 );
 
 				  tokenString("id",actualID);
 				  yylval.lexeme = strdup( actualID );
-				//  tokenString("id",yytext); 
+				//  tokenString("id",yytext);
 				//  yylval.lexeme = strdup(yytext); /* pass ID to parser */
-				  return ID; 
+				  return ID;
 				}
-{integer}			{ 
-				  tokenInteger("integer",atoi(yytext)); 
+{integer}			{
+				  tokenInteger("integer",atoi(yytext));
 				  yylval.intVal = atoi(yytext);
-				  return INT_CONST; 
+				  return INT_CONST;
 				}
-{float}				{ 
-				  tokenFloat("float",atof(yytext)); 
+{float}				{
+				  tokenFloat("float",atof(yytext));
 				  yylval.realVal = atof(yytext);
-				  return FLOAT_CONST; 
+				  return FLOAT_CONST;
 				}
-{scientific}			{ 
-				  tokenScientific("scientific", yytext); 
-				  yylval.realVal = scientificToFloat(yytext); 
-				  return SCIENTIFIC; 
+{scientific}			{
+				  tokenScientific("scientific", yytext);
+				  yylval.realVal = scientificToFloat(yytext);
+				  return SCIENTIFIC;
 				}
 
 \"((\"\")|[^\"\n])*\"	{
@@ -162,6 +163,7 @@ identifier ({letter})({letter}|{digit})*
 				  LIST;
 				  if( Opt_S )
 				  	printf("%d: %s",  linenum,  buf);
+				  	fprintf(outfp,";%d: %s",  linenum,  buf);
 				  linenum++;
 				  memset( buf, 0, MAX_LINE_LENG );
 				  BEGIN INITIAL;
@@ -179,6 +181,7 @@ identifier ({letter})({letter}|{digit})*
 				  LIST;
 				  if  (Opt_S)
 				  	printf("%d: %s",  linenum,  buf);
+				  	fprintf(outfp,";%d: %s",  linenum,  buf);
 				  linenum++;
 				  memset( buf, 0, MAX_LINE_LENG );
 				}
@@ -186,14 +189,15 @@ identifier ({letter})({letter}|{digit})*
 				  LIST;
 				}
 
-{whitespace}			{ 
-				  LIST; 
+{whitespace}			{
+				  LIST;
 				}
 
 \n 				{
 				  LIST;
 				  if  (Opt_S)
 				  	printf("%d: %s",  linenum,  buf);
+				  	fprintf(outfp,";%d: %s",  linenum,  buf);
 				  linenum++;
 				  memset( buf, 0, MAX_LINE_LENG );
 		   		}
@@ -228,7 +232,7 @@ void setPseudoComment( const char *text )
 	 	break;
 	 case 'D':
 		Opt_D = Opt;
-	 	break;	
+	 	break;
 	 default:
 	 	break;
 	}
