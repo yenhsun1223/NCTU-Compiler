@@ -48,6 +48,7 @@ void GenProgramEnd(){
 	fprintf(outfp, ".end method\n");
 }
 void GenMethod(char* name,int stack_lim,char* para,char* ret){
+	fprintf(outfp, "\n;main start\n");
 	fprintf(outfp, ".method public static %s(%s)%s\n",name,para,ret);
 	fprintf(outfp, ".limit stack %d ; up to %ditems can be pushed\n",stack_lim,stack_lim);
 	fprintf(outfp, ".limit locals 64 ; up to 64 varibles can be pushed\n\n");

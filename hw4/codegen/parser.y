@@ -569,14 +569,12 @@ factor			: var_ref
 			}
 			| MK_LPAREN boolean_expr MK_RPAREN
 			{
-			  GenLoadExpr($2);
 			  $2->beginningOp = NONE_t;
 			  $$ = $2;
 			}
 			| OP_SUB MK_LPAREN boolean_expr MK_RPAREN
 			{
 			  verifyUnaryMinus( $3 );
-			  GenLoadExpr($3);
 				GenArithmetic($3,SUB_t,0);
 			  $$ = $3;
 			  $$->beginningOp = SUB_t;
@@ -585,14 +583,12 @@ factor			: var_ref
 			{
 			  $$ = verifyFuncInvoke( $1, $3, symbolTable, scope );
 			  $$->beginningOp = NONE_t;
-			  GenLoadExpr($3);
 			  GenFunctionCall($1);
 			}
 			| OP_SUB ID MK_LPAREN opt_boolean_expr_list MK_RPAREN
 			{
 			  $$ = verifyFuncInvoke( $2, $4, symbolTable, scope );
 			  $$->beginningOp = SUB_t;
-			  GenLoadExpr($4);
 			  GenFunctionCall($2);
 			}
 			| literal_const
