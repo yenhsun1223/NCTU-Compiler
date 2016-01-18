@@ -1,0 +1,21 @@
+#!/bin/bash
+file="${@%.*}"
+cd ..
+make
+cd test
+if [ "$?" != "0" ];then
+    exit
+fi
+parser_err=$(./parser $@| grep Error)
+jasmin_msg=$((jasmin ${file}.j) 2>&1)
+if [ ! -z "$jasmin_msg" ] && [[ "${jasmin_msg}" != *"Generated"* ]]; then
+    echo "$jasmin_msg"
+    echo "jasmin error, stopped"
+elif [ ! -z "$parser_err" ];then
+    echo "$parser_err"
+    echo "parser error, stopped"
+else
+    echo
+    echo "Compile Successed, running"
+    java $file
+fi
