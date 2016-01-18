@@ -8,9 +8,9 @@
 #include "symtab.h"
 #include"codegen.h"
 int label_count=-1; //count loop label
-int tf_count=-1; //count Ltrue,Lfalse;
+//int tf_count=-1; //count Ltrue,Lfalse;
 struct loop_stack loopStack;
-struct cond_stack condStack;
+//struct cond_stack condStack;
 
 
 void pushIns(char* ins){
@@ -35,7 +35,7 @@ void ClearExprIns(){
 
 void GenProgramStart(char* pname){
 	loopStack.top=-1;
-	condStack.top=-1;
+	//condStack.top=-1;
 	fprintf(outfp, "; %s\n",pname);
 	fprintf(outfp, ".class public %s\n",pname);
 	fprintf(outfp, ".super java/lang/Object\n\n");
@@ -51,7 +51,7 @@ void GenMethod(char* name,int stack_lim,char* para,char* ret){
 	fprintf(outfp, "\n;main start\n");
 	fprintf(outfp, ".method public static %s(%s)%s\n",name,para,ret);
 	fprintf(outfp, ".limit stack %d ; up to %ditems can be pushed\n",stack_lim,stack_lim);
-	fprintf(outfp, ".limit locals 64 ; up to 64 varibles can be pushed\n\n");
+	fprintf(outfp, ".limit locals 128 ; up to 64 varibles can be pushed\n\n");
 }
 
 void GenGlobalVar(char* pname,struct PType* type){
@@ -69,56 +69,68 @@ void GenGlobalVar(char* pname,struct PType* type){
 void GenLoadExpr(struct expr_sem* expr){
 	if(!expr) return;
 	if(expr->varRef){
-		struct SymNode* lookup= lookupSymbol(symbolTable,expr->varRef->id,scope,__FALSE);
+		struct SymNode*	lookup= lookupLoopVar(symbolTable,expr->varRef->id);
 		if(lookup){
-			if(lookup->category==CONSTANT_t){
-				switch(expr->pType->type){
-					case INTEGER_t:
-						snprintf(insBuf,sizeof(insBuf), "sipush %d\n",lookup->attribute->constVal->value.integerVal);
-						break;
-					case REAL_t:
-						snprintf(insBuf,sizeof(insBuf), "ldc %lf\n",lookup->attribute->constVal->value.realVal);
-						break;
-					case BOOLEAN_t:
-						snprintf(insBuf,sizeof(insBuf), "iconst_%d\n",lookup->attribute->constVal->value.booleanVal);
-						break;
-				}
-			}
-			else if((lookup->category==VARIABLE_t ||lookup->category==PARAMETER_t)&& lookup->scope!=0){
-				switch(expr->pType->type){
-					case INTEGER_t:
-						snprintf(insBuf,sizeof(insBuf), "iload %d\n",lookup->attribute->var_no);
-						break;
-					case REAL_t:
-						snprintf(insBuf,sizeof(insBuf), "fload %d\n",lookup->attribute->var_no);
-						break;
-					case BOOLEAN_t:
-						snprintf(insBuf,sizeof(insBuf), "iload %d\n",lookup->attribute->var_no);
-						break;
-				}
-			}
-			else if(lookup->category==VARIABLE_t && lookup->scope==0){
-				switch(expr->pType->type){
-					case INTEGER_t:
-						snprintf(insBuf,sizeof(insBuf), "getstatic %s/%s I\n",fileName,lookup->name);
-						break;
-					case REAL_t:
-						snprintf(insBuf,sizeof(insBuf), "getstatic %s/%s F\n",fileName,lookup->name);
-						break;
-					case BOOLEAN_t:
-						snprintf(insBuf,sizeof(insBuf), "getstatic %s/%s Z\n",fileName,lookup->name);
-						break;
-				}
-			}
-		}else{
-				lookup= lookupLoopVar(symbolTable,expr->varRef->id);
-				if(lookup){
-					snprintf(insBuf,sizeof(insBuf), "iload %d\n",lookup->attribute->var_no);
-				}
-			}
-			pushIns(insBuf);
-			memset(insBuf,0,sizeof(insBuf));
+			snprintf(insBuf,sizeof(insBuf), "iload %d\n",lookup->attribute->var_no);
 		}
+		else
+		{
+			lookup= lookupSymbol(symbolTable,expr->varRef->id,scope,__FALSE);
+			if(lookup){
+				if(lookup->category==CONSTANT_t){
+					switch(expr->pType->type){
+						case INTEGER_t:
+							snprintf(insBuf,sizeof(insBuf), "sipush %d\n",lookup->attribute->constVal->value.integerVal);
+							break;
+						case REAL_t:
+							snprintf(insBuf,sizeof(insBuf), "ldc %lf\n",lookup->attribute->constVal->value.realVal);
+							break;
+						case BOOLEAN_t:
+							snprintf(insBuf,sizeof(insBuf), "iconst_%d\n",lookup->attribute->constVal->value.booleanVal);
+							break;
+					}
+				}
+				else if((lookup->category==VARIABLE_t ||lookup->category==PARAMETER_t)&& lookup->scope!=0){
+					switch(expr->pType->type){
+						case INTEGER_t:
+							snprintf(insBuf,sizeof(insBuf), "iload %d\n",lookup->attribute->var_no);
+							break;
+						case REAL_t:
+							snprintf(insBuf,sizeof(insBuf), "fload %d\n",lookup->attribute->var_no);
+							break;
+						case BOOLEAN_t:
+							snprintf(insBuf,sizeof(insBuf), "iload %d\n",lookup->attribute->var_no);
+							break;
+					}
+				}
+				else if(lookup->category==VARIABLE_t && lookup->scope==0){
+					switch(expr->pType->type){
+						case INTEGER_t:
+							snprintf(insBuf,sizeof(insBuf), "getstatic %s/%s I\n",fileName,lookup->name);
+							break;
+						case REAL_t:
+							snprintf(insBuf,sizeof(insBuf), "getstatic %s/%s F\n",fileName,lookup->name);
+							break;
+						case BOOLEAN_t:
+							snprintf(insBuf,sizeof(insBuf), "getstatic %s/%s Z\n",fileName,lookup->name);
+							break;
+					}
+				}
+			}
+		}
+		pushIns(insBuf);
+		memset(insBuf,0,sizeof(insBuf));
+	}
+	if(expr->beginningOp==SUB_t){
+		switch(expr->pType->type){
+			case INTEGER_t:
+				GenToList("ineg\n");
+				break;
+			case REAL_t:
+				GenToList("fneg\n");
+				break;
+		}
+	}
 
 }
 void GenSaveExpr(struct expr_sem* expr,struct expr_sem* RHS){
@@ -254,15 +266,18 @@ void LoadConstToStack(struct ConstAttr* constattr){
 
 void GenArithmetic( struct expr_sem *op1, OPERATOR operator, struct expr_sem *op2){
 
-	if( ((op1->pType->type==INTEGER_t || op1->pType->type==REAL_t) && \
-				(op2->pType->type==INTEGER_t || op2->pType->type==REAL_t)) ) {	// need to consider type coercion
-		if( op1->pType->type==INTEGER_t && op2->pType->type==REAL_t) {
-			ClearExprIns();
-			GenToList("i2f\n");
-			GenLoadExpr(op2);
-			op1->pType->type = REAL_t;
-		}else if( op1->pType->type==REAL_t && op2->pType->type==INTEGER_t){
-			GenToList("i2f\n");
+	//coercion
+	if(op1 && op2){//unary need no coercion
+		if( ((op1->pType->type==INTEGER_t || op1->pType->type==REAL_t) && \
+					(op2->pType->type==INTEGER_t || op2->pType->type==REAL_t)) ) {	// need to consider type coercion
+			if( op1->pType->type==INTEGER_t && op2->pType->type==REAL_t) {
+				ClearExprIns();
+				GenToList("i2f\n");
+				GenLoadExpr(op2);
+				op1->pType->type = REAL_t;
+			}else if( op1->pType->type==REAL_t && op2->pType->type==INTEGER_t){
+				GenToList("i2f\n");
+			}
 		}
 	}
 
@@ -283,13 +298,6 @@ void GenArithmetic( struct expr_sem *op1, OPERATOR operator, struct expr_sem *op
 				}
 				else if(op1->pType->type == REAL_t){
 					snprintf(insBuf,sizeof(insBuf), "fsub\n");
-				}
-			}else{
-				if(op1->pType->type == INTEGER_t){
-					snprintf(insBuf,sizeof(insBuf), "ineg\n");
-				}
-				else if(op1->pType->type == REAL_t){
-					snprintf(insBuf,sizeof(insBuf), "fneg\n");
 				}
 			}
 			break;
@@ -316,7 +324,24 @@ void GenArithmetic( struct expr_sem *op1, OPERATOR operator, struct expr_sem *op
 	pushIns(insBuf);
 	memset(insBuf,0,sizeof(insBuf));
 }
+void GenBoolean( struct expr_sem *op1, OPERATOR operator, struct expr_sem *op2){
+	GenExprIns();
+	switch(operator){
+		case AND_t:
+			GenToList( "iand\n");
+			break;
+		case OR_t:
+			GenToList( "ior\n");
+			break;
+		case NOT_t:
+			GenToList( "iconst_1\nixor\n");
+			break;
+	}
+}
 void GenRelational( struct expr_sem *op1, OPERATOR operator, struct expr_sem *op2){
+	loopStack.top++;
+	label_count++;
+	loopStack.stack[loopStack.top]=label_count;
 	if(op1->pType->type == INTEGER_t){
 		pushIns("isub\n");
 	}
@@ -325,30 +350,30 @@ void GenRelational( struct expr_sem *op1, OPERATOR operator, struct expr_sem *op
 	}
 	switch(operator){
 		case LT_t:
-			GenToList( "iflt Ltrue_%d\n",tf_count);
+			GenToList( "iflt Ltrue_%d\n",loopStack.stack[loopStack.top]);
 			break;
 		case LE_t:
-			GenToList( "ifle Ltrue_%d\n",tf_count);
+			GenToList( "ifle Ltrue_%d\n",loopStack.stack[loopStack.top]);
 			break;
 		case NE_t:
-			GenToList( "ifne Ltrue_%d\n",tf_count);
+			GenToList( "ifne Ltrue_%d\n",loopStack.stack[loopStack.top]);
 			break;
 		case GE_t:
-			GenToList( "ifge Ltrue_%d\n",tf_count);
+			GenToList( "ifge Ltrue_%d\n",loopStack.stack[loopStack.top]);
 			break;
 		case GT_t:
-			GenToList( "ifgt Ltrue_%d\n",tf_count);
+			GenToList( "ifgt Ltrue_%d\n",loopStack.stack[loopStack.top]);
 			break;
 		case EQ_t:
-			GenToList( "ifeq Ltrue_%d\n",tf_count);
+			GenToList( "ifeq Ltrue_%d\n",loopStack.stack[loopStack.top]);
 			break;
 	}
 	pushIns( "iconst_0\n"); //false
-	GenToList( "goto Lfalse_%d\n",tf_count);
-	GenToList( "Ltrue_%d:\n",tf_count);
+	GenToList( "goto Lfalse_%d\n",loopStack.stack[loopStack.top]);
+	GenToList( "Ltrue_%d:\n",loopStack.stack[loopStack.top]);
 	pushIns( "iconst_1\n");//true
-	GenToList( "Lfalse_%d:\n",tf_count);
-	tf_count++;
+	GenToList( "Lfalse_%d:\n",loopStack.stack[loopStack.top]);
+	loopStack.top--;
 }
 void GenFunctionStart(char* id,struct param_sem* params,struct PType* ret){
 	struct param_sem *parPtr;
@@ -386,8 +411,8 @@ void GenFunctionStart(char* id,struct param_sem* params,struct PType* ret){
 	}
 	pushIns(insBuf);
 	memset(insBuf,0,sizeof(insBuf));
-	pushIns(".limit stack 16 ; Sets the maximum size of the operand stack required by the method\n");
-	pushIns(".limit locals 16 ; Sets the maximum size of the operand stack required by the method\n");
+	pushIns(".limit stack 128 ; Sets the maximum size of the operand stack required by the method\n");
+	pushIns(".limit locals 128 ; Sets the maximum size of the operand stack required by the method\n");
 	GenExprIns();
 }
 void GenFunctionEnd(struct PType* ret){

@@ -43,6 +43,7 @@ void GenRead(struct expr_sem*);
 void LoadConstToStack(struct ConstAttr*);
 void GenArithmetic( struct expr_sem *op1, OPERATOR operator, struct expr_sem *op2);
 void GenRelational( struct expr_sem *op1, OPERATOR operator, struct expr_sem *op2);
+void GenBoolean( struct expr_sem *op1, OPERATOR operator, struct expr_sem *op2);
 void GenFunctionStart(char* id,struct param_sem* params,struct PType* ret);
 void GenFunctionEnd(struct PType* ret);
 void GenFunctionCall(char* id);

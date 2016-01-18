@@ -105,7 +105,7 @@ program			: ID
 			}
 			;
 
-program_body		: opt_decl_list opt_func_decl_list { GenMethod("main",64,"[Ljava/lang/String;","V");} compound_stmt { GenProgramEnd();}
+program_body		: opt_decl_list opt_func_decl_list { GenMethod("main",128,"[Ljava/lang/String;","V");} compound_stmt { GenProgramEnd();}
 			  ;
 
 opt_decl_list		: decl_list
@@ -400,6 +400,7 @@ condition		: boolean_expr
 			loopStack.top++;
 			label_count++;
 			loopStack.stack[loopStack.top]=label_count;
+
 		   verifyBooleanExpr( $1, "if" );
 		   GenToList("ifeq Lfalse_%d\n",loopStack.stack[loopStack.top]);
 		   }
@@ -480,6 +481,7 @@ boolean_expr_list	: boolean_expr_list MK_COMMA boolean_expr
 boolean_expr		: boolean_expr OP_OR boolean_term
 			{
 			  verifyAndOrOp( $1, OR_t, $3 );
+			  GenBoolean($1,OR_t,$3);
 			  $$ = $1;
 			}
 			| boolean_term { $$ = $1; }
@@ -488,6 +490,7 @@ boolean_expr		: boolean_expr OP_OR boolean_term
 boolean_term		: boolean_term OP_AND boolean_factor
 			{
 			  verifyAndOrOp( $1, AND_t, $3 );
+			  GenBoolean($1,AND_t,$3);
 			  $$ = $1;
 			}
 			| boolean_factor { $$ = $1; }
@@ -496,6 +499,7 @@ boolean_term		: boolean_term OP_AND boolean_factor
 boolean_factor		: OP_NOT boolean_factor
 			{
 			  verifyUnaryNOT( $2 );
+			  GenBoolean($2,NOT_t,$2);
 			  $$ = $2;
 			}
 			| relop_expr { $$ = $1; }
