@@ -1,0 +1,31 @@
+#!/bin/bash
+COMPILER_PATH="compiler"
+JASMIN_JAR="./jasmin/jasmin.jar"
+filename=`basename $@`
+classname=${filename%.*} #% means extract in bash
+echo $classname
+echo $filename
+cd $COMPILER_PATH
+make
+cd ..
+
+if [ "$?" != "0" ];then
+    exit
+fi
+
+parser_err=$(./$COMPILER_PATH/parser $@| grep Error)
+jasmin_msg=$((java -jar "$JASMIN_JAR" ${filename%.*}.j) 2>&1)
+if [ ! -z "$jasmin_msg" ] && [[ "${jasmin_msg}" != *"Generated"* ]]; then
+    echo "$jasmin_msg"
+    echo "jasmin error, stopped"
+elif [ ! -z "$parser_err" ];then
+    echo "$parser_err"
+    echo "parser error, stopped"
+else
+    echo
+    echo "Compile Successed, running"
+    java $classname
+fi
+
+rm -f $classname.class
+rm -f $classname.j
