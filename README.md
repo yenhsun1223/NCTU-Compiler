@@ -44,8 +44,10 @@ for example: `bash ./compile_and_run Patterns/general.p`
 This is a game of guessing number
 
 The code of the program
+
 ![code](https://raw.githubusercontent.com/daniel0076/NCTU-Compiler/master/hw4/screenshots/code.png)
 
 result
+
 ![result](https://raw.githubusercontent.com/daniel0076/NCTU-Compiler/master/hw4/screenshots/result.png)
 
